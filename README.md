@@ -33,8 +33,7 @@ source /apps/local/anaconda2023/conda_init.sh \\
 conda activate ffvt_u2n_p36
 
 
-
-
+  
 RUN:
 
 example: \\
