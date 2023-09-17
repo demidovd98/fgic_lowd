@@ -3,8 +3,8 @@
 ```
 cd /l/users/20020067/Activities/FGIC/low_data/Combined/Refine/fgic_lowd
 
-module load cuda-10.2 <br>
-nvcc --version <br>
+module load cuda-10.2
+nvcc --version
 ```
 
 
@@ -15,9 +15,9 @@ ENVIRONMENT:
 pip:
 
 ```
-python3 -m venv env <br>
-source env/bin/activate <br>
-pip install -r requirements_pip.txt <br>
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements_pip.txt
 ```
 
 
@@ -34,8 +34,8 @@ conda env create -f environment.yml
 ```
 conda create --name <env> --file requirements_conda.txt
 
-source /apps/local/anaconda2023/conda_init.sh <br>
-conda activate ffvt_u2n_p36 <br>
+source /apps/local/anaconda2023/conda_init.sh
+conda activate ffvt_u2n_p36
 ```
 
   
