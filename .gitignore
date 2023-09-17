@@ -3,6 +3,20 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+# My:
+#_extra/
+_extra/U2Net/saved_models/
+checkpoint/
+logs/
+models/pre_trained/
+output/
+test/
+wandb/
+logs.txt
+
+
+
 # C extensions
 *.so
 
