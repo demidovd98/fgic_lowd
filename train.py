@@ -117,7 +117,7 @@ def setup(args):
 
     if args.dataset == "cifar10":
         num_classes=10
-        dataset_path = 'CUB_200_2011/CUB_200_2011/CUB_200_2011'
+        dataset_path = ''
     elif args.dataset == "cifar100":
         num_classes=100
         dataset_path = ''
@@ -132,7 +132,7 @@ def setup(args):
         dataset_path = 'Stanford Dogs/Stanford_Dogs'
     elif args.dataset == "CUB":
         num_classes=200
-        dataset_path = ''
+        dataset_path = 'CUB_200_2011/CUB_200_2011/CUB_200_2011'
     elif args.dataset == "cars":
         num_classes=196
         dataset_path = 'Stanford Cars/Stanford Cars'
@@ -309,7 +309,7 @@ def setup(args):
 
         #print(model)
 
-        logger.info("{}".format(config))
+        if args.model_type == "ViT": logger.info("{}".format(config))
         logger.info("Training parameters %s", args)
         logger.info("Total Parameter: \t%2.1fM" % num_params)
         print(num_params)
@@ -1027,13 +1027,13 @@ def main():
     parser.add_argument("--dataset", choices=["cifar10", "cifar100", "soyloc","cotton", "CUB", "dogs","cars","air", "CRC"], default="cotton",
                         help="Which downstream task.")
     
-    parser.add_argument("--model_type", choices=["ViT", "ResNet"],
-                        default="ResNet",
+    parser.add_argument("--model_type", choices=["vit", "cnn"],
+                        default="cnn",
                         help="Which architecture to use.")
     parser.add_argument("--model_name", choices=["ViT-B_16", "ViT-B_32", "ViT-L_16",
                                                  "ViT-L_32", "ViT-H_14", "R50-ViT-B_16",
-                                                 'resnet18', 'resnet34', 'resnet50',
-                                                 'resnet101', 'resnet152'],
+                                                 "resnet18", "resnet34", "resnet50",
+                                                 "resnet101", "resnet152"],
                         default="resnet50",
                         help="Which specific model to use.")
 

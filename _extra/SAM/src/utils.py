@@ -1,8 +1,8 @@
-from SAM.models.resnet import resnet18, resnet34, resnet50, resnet152, resnet101
+from _extra.SAM.models.resnet import resnet18, resnet34, resnet50, resnet152, resnet101
 
-from SAM.data.tranforms import TransformTrain
-from SAM.data.tranforms import TransformTest
-import SAM.data as data
+from _extra.SAM.data.tranforms import TransformTrain
+from _extra.SAM.data.tranforms import TransformTest
+import _extra.SAM.data as data
 from torch.utils.data import DataLoader, RandomSampler
 import os
 
