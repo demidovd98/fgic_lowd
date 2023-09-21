@@ -38,10 +38,10 @@ from torchvision import models
 
 
 # SAM:
-# from SAM.models.classifier import Classifier
-# from SAM.models.method import SAM
+from _extra.SAM.models.classifier import Classifier
+from _extra.SAM.models.method import SAM
 
-# from SAM.src.utils import load_network, load_data
+from _extra.SAM.src.utils import load_network, load_data
 
 
 def init_weights(m):
@@ -113,30 +113,39 @@ def reduce_mean(tensor, nprocs):
     return rt
 
 def setup(args):
-    # Prepare model
-    config = CONFIGS[args.model_type]
-    if args.feature_fusion:
-        config.feature_fusion=True
-    config.num_token = args.num_token
-    
+
+
     if args.dataset == "cifar10":
         num_classes=10
+        dataset_path = 'CUB_200_2011/CUB_200_2011/CUB_200_2011'
     elif args.dataset == "cifar100":
         num_classes=100
+        dataset_path = ''
     elif args.dataset == "soyloc":
         num_classes=200
+        dataset_path = ''
     elif args.dataset== "cotton":
         num_classes=80
+        dataset_path = ''
     elif args.dataset == "dogs":
         num_classes = 120
+        dataset_path = 'Stanford Dogs/Stanford_Dogs'
     elif args.dataset == "CUB":
         num_classes=200
+        dataset_path = ''
     elif args.dataset == "cars":
         num_classes=196
+        dataset_path = 'Stanford Cars/Stanford Cars'
     elif args.dataset == 'air':
         num_classes = 100
+        dataset_path = 'FGVC-Aircraft-2013/fgvc-aircraft-2013b'
     elif args.dataset == 'CRC':
         num_classes = 8
+        dataset_path = 'CRC_colorectal_cancer_histology'
+    else:
+        raise Exception("No dataset chosen") 
+
+    args.data_root = '{}/{}'.format(args.data_root, dataset_path)
 
 
     if args.split is not None:
@@ -144,6 +153,15 @@ def setup(args):
 
     if args.vanilla:
         print("[INFO] A vanilla (unmodified) model is used")
+
+
+    # Prepare model
+
+    if args.model_type == "ViT":
+        config = CONFIGS[args.model_name]
+        if args.feature_fusion:
+            config.feature_fusion=True
+        config.num_token = args.num_token
 
 
     timm_model = False #True
@@ -154,6 +172,13 @@ def setup(args):
         if resnet50:
 
             if SAM_check:
+
+                if args.model_name == 'resnet34' or 'resnet18':
+                    proj_size = 512
+                else:
+                    proj_size = 2048
+
+                '''
                 backbone_name = 'resnet152'
                 #backbone_name = 'resnet101'
                 #backbone_name = 'resnet50'
@@ -162,6 +187,7 @@ def setup(args):
                 #backbone_name = 'resnet34'
                 #backbone_name = 'resnet18'
                 #proj_size = 512
+                '''
 
                 #pretrained_path = '~/.torch/models/moco_v2_800ep_pretrain.pth.tar'
                 pretrained_path = None
@@ -1000,10 +1026,17 @@ def main():
                         help="Name of this run. Used for monitoring.")
     parser.add_argument("--dataset", choices=["cifar10", "cifar100", "soyloc","cotton", "CUB", "dogs","cars","air", "CRC"], default="cotton",
                         help="Which downstream task.")
-    parser.add_argument("--model_type", choices=["ViT-B_16", "ViT-B_32", "ViT-L_16",
-                                                 "ViT-L_32", "ViT-H_14", "R50-ViT-B_16"],
-                        default="ViT-B_16",
-                        help="Which variant to use.")
+    
+    parser.add_argument("--model_type", choices=["ViT", "ResNet"],
+                        default="ResNet",
+                        help="Which architecture to use.")
+    parser.add_argument("--model_name", choices=["ViT-B_16", "ViT-B_32", "ViT-L_16",
+                                                 "ViT-L_32", "ViT-H_14", "R50-ViT-B_16",
+                                                 'resnet18', 'resnet34', 'resnet50',
+                                                 'resnet101', 'resnet152'],
+                        default="resnet50",
+                        help="Which specific model to use.")
+
 
     #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/ViT-B_16.npz",
     parser.add_argument("--pretrained_dir", type=str, default="",
@@ -1070,7 +1103,9 @@ def main():
     
 
     #parser.add_argument('--data_root', type=str, default='./data') # Originall
-    parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/CUB_200_2011/CUB_200_2011/CUB_200_2011') # CUB
+    parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets')
+
+    #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/CUB_200_2011/CUB_200_2011/CUB_200_2011') # CUB
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/Stanford Dogs/Stanford_Dogs') # dogs
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/Stanford Cars/Stanford Cars') # cars
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/CRC_colorectal_cancer_histology') # CRC Medical
@@ -1083,6 +1118,7 @@ def main():
     args = parser.parse_args()
     
     #args.data_root = '{}/{}'.format(args.data_root, args.dataset)
+
 
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1:
