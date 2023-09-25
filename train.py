@@ -1102,8 +1102,9 @@ def main():
                         help="Coefficient of the distillation loss contribution.")
     
 
-    #parser.add_argument('--data_root', type=str, default='./data') # Originall
-    parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets')
+    #parser.add_argument('--data_root', type=str, default='./data') # Original
+    #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets') # local
+    parser.add_argument('--data_root', type=str, default='/l/users/cv-805/Datasets') # shared
 
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/CUB_200_2011/CUB_200_2011/CUB_200_2011') # CUB
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets/Stanford Dogs/Stanford_Dogs') # dogs
