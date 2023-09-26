@@ -46,7 +46,6 @@ source env/bin/activate
 pip install -r requirements_pip.txt
 ```
 
-
 conda:
 
 1. With environment.yml:
@@ -59,11 +58,7 @@ conda env create -f environment.yml
 
 ```
 conda create --name <env> --file requirements_conda.txt
-
-source /apps/local/anaconda2023/conda_init.sh
-conda activate ffvt_u2n_p36
 ```
-
 
 
 #### copy environment to the shared folder:
@@ -71,7 +66,6 @@ conda activate ffvt_u2n_p36
 ```
 conda create --prefix ./name --clone name
 ```
-
 
 
 #### Use local environment:
