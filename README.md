@@ -10,20 +10,21 @@
 
 - Public:
 ```
-cd '/your/cloned/repo/path'
+cd '/path/to/cloned/repo/'
 
 bash init.sh 
-
-module load cuda-10.2
 
 conda activate ffvt_u2n_p36
 ```
 
 - Dev:
 ```
-cd '/your/cloned/repo/path'
+cd '/path/to/cloned/repo/'
 
-bash init_dev.sh 
+bash init_dev.sh
+
+source /apps/local/anaconda2023/conda_init.sh
+conda activate /l/users/cv-805/envs/ffvt_u2n_p36
 ```
 
 

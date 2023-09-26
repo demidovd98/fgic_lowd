@@ -9,6 +9,3 @@ mkdir -p ./test
 
 module load cuda-10.2
 nvcc --version
-
-source /apps/local/anaconda2023/conda_init.sh
-conda activate /l/users/cv-805/envs/ffvt_u2n_p36
