@@ -2,8 +2,8 @@
 from __future__ import absolute_import, division, print_function
 
 # WnB:
-#import wandb
-#wandb.init(project="fgvc_combined_ld_refine", entity="demidovd98")
+import wandb
+wandb.init(project="fgic_ld", entity="fgic_lowd")
 #
 
 import logging
@@ -369,7 +369,7 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
     for step, batch in enumerate(epoch_iterator):
 
         #
-        ##wandb.log({"step": step})
+        #wandb.log({"step": step})
         #
 
         batch = tuple(t.to(args.device) for t in batch)
@@ -452,7 +452,7 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
     writer.add_scalar("test/accuracy", scalar_value=accuracy, global_step=global_step)
 
     #
-    #wandb.log({"acc_test": accuracy})
+    wandb.log({"acc_test": accuracy})
     #
 
     return accuracy
@@ -658,7 +658,7 @@ def train(args, model, classifier=None, num_classes=None):
         for step, batch in enumerate(epoch_iterator):
             #print(step)
             
-            #wandb.log({"step": step})
+            wandb.log({"step": step})
 
             batch = tuple(t.to(args.device) for t in batch)
 
@@ -896,8 +896,8 @@ def train(args, model, classifier=None, num_classes=None):
 
                         #loss = criterion(logits, y)
                         if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
-                        #wandb.log({"ce_loss": ce_loss.item()})
-                        #wandb.log({"dist_loss": refine_loss.item()})
+                        wandb.log({"ce_loss": ce_loss.item()})
+                        wandb.log({"dist_loss": refine_loss.item()})
 
 
                     else:
@@ -1002,7 +1002,7 @@ def train(args, model, classifier=None, num_classes=None):
         writer.add_scalar("train/accuracy", scalar_value=train_accuracy, global_step=global_step)
 
         #
-        #wandb.log({"acc_train": train_accuracy})
+        wandb.log({"acc_train": train_accuracy})
         #
 
         logger.info("train accuracy so far: %f" % train_accuracy)
@@ -1152,7 +1152,7 @@ def main():
     if SAM_check:
         args, model, classifier, num_classes = setup(args)
 
-        #wandb.watch(model)
+        wandb.watch(model)
 
         # Training
         train(args, model, classifier, num_classes)
@@ -1160,7 +1160,7 @@ def main():
 
         args, model, num_classes = setup(args)
 
-        #wandb.watch(model)
+        wandb.watch(model)
         #torch.autograd.set_detect_anomaly(True)
 
         # Training

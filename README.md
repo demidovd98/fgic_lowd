@@ -6,6 +6,16 @@
 
 #### Run:
 
+First run:
+```
+mkdir -p ./checkpoint
+mkdir -p ./logs
+mkdir -p ./models/pre_trained/
+mkdir -p ./output
+mkdir -p ./test
+
+```
+
 Shared environment:
 ```
 cd '/your/cloned/repo/path'
