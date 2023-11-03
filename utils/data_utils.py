@@ -168,8 +168,8 @@ def get_loader(args):
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
         '''
 
-        trainset = eval(args.dataset)(root=args.data_root, is_train=True, transform=train_transform)
-        testset = eval(args.dataset)(root=args.data_root, is_train=False, transform = test_transform)
+        trainset = eval(args.dataset)(root=args.data_root, is_train=True, transform=train_transform, split=args.split, vanilla=args.vanilla)
+        testset = eval(args.dataset)(root=args.data_root, is_train=False, transform=test_transform, split=args.split, vanilla=args.vanilla)
 
 
     elif args.dataset == 'cars':
@@ -204,7 +204,8 @@ def get_loader(args):
 
                                     transforms.ToTensor(),
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                                    ])
+                                    ]),
+                            split=args.split
                             )
 
         testset = CarsDataset(
@@ -231,7 +232,8 @@ def get_loader(args):
 
                                     transforms.ToTensor(),
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                                    ])
+                                    ]),
+                            split=args.split
                             )
 
 
@@ -285,8 +287,8 @@ def get_loader(args):
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ])
 
-        trainset = FGVC_aircraft(root=args.data_root, is_train=True, transform=train_transform)
-        testset = FGVC_aircraft(root=args.data_root, is_train=False, transform=test_transform)
+        trainset = FGVC_aircraft(root=args.data_root, is_train=True, transform=train_transform, split=args.split)
+        testset = FGVC_aircraft(root=args.data_root, is_train=False, transform=test_transform, split=args.split)
 
 
     elif args.dataset== "CRC":
@@ -340,7 +342,7 @@ def get_loader(args):
                               batch_size=args.train_batch_size,
                               
                               #num_workers=4,
-                              num_workers=20, #20,
+                              num_workers=8, #20,
 
                               pin_memory=True)
     test_loader = DataLoader(testset,
@@ -348,7 +350,7 @@ def get_loader(args):
                              batch_size=args.eval_batch_size,
 
                              #num_workers=4,
-                             num_workers=20, #20,
+                             num_workers=8, ##20,
 
                              pin_memory=True) if testset is not None else None
 

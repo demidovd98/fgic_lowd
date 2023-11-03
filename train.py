@@ -135,7 +135,7 @@ def setup(args):
                 # mb initialise classifier ?
                 # classifier.classifier_layer.apply(init_weights)
 
-                print("[INFO] A pre-trained ECCV ResNet-50 model is used")
+                print(f"[INFO] A pre-trained ECCV {args.model_name} model is used")
 
             else:
                 '''
@@ -160,16 +160,16 @@ def setup(args):
                 model.fc.weight.data.normal_(0, 0.01)
                 model.fc.bias.data.fill_(0.0)
 
-                print("[INFO] A pre-trained ResNet-50 model is used")
+                print(f"[INFO] A pre-trained {args.model_name} model is used")
 
         elif args.model_type == "vit":
             model = VisionTransformer(config, args.img_size, zero_head=True, num_classes=num_classes, vis=True, smoothing_value=args.smoothing_value, dataset=args.dataset)
             
             if args.pretrained_dir != "":
-                print("[INFO] A pre-trained model is used")
+                print(f"[INFO] A pre-trained {args.model_name} model is used")
                 model.load_from(np.load(args.pretrained_dir))
             else:
-                print("[INFO] A model will be trained from scratch")
+                print(f"[INFO] A model {args.model_name} will be trained from scratch")
         else:
             raise Exception(f"[ERROR] Undefined model type {args.model_type}") 
 
@@ -545,10 +545,7 @@ def train(args, model, classifier=None, num_classes=None):
             # loss, logits = model(x, y)
             # #loss = loss.mean() # for contrastive learning
 
-            # print("____________________________")
-            # print(args.vanilla)
             # print(args.aug_type)
-                
 
             if args.saliency:
                 # With mask:
@@ -700,13 +697,14 @@ def train(args, model, classifier=None, num_classes=None):
                             print(refine_loss.item())
                             '''
 
+
                             # no log (experimental); originally the input better be in log space (gives negative loss but acc better for some reason) 
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
-                            #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
+                            refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
                             
                             # main
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
+                            #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
 
 
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1), reduction='batchmean') #, log_target=True) #reduction='sum')
@@ -781,8 +779,6 @@ def train(args, model, classifier=None, num_classes=None):
                         wandb.log({"dist_loss": refine_loss.item()})
 
                     else:
-                        #num_classes=8
-
                         # print(logits.size())
                         # print(num_classes)
                         # print(y.size())
