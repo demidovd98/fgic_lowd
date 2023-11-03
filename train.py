@@ -700,10 +700,10 @@ def train(args, model, classifier=None, num_classes=None):
 
                             # no log (experimental); originally the input better be in log space (gives negative loss but acc better for some reason) 
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
-                            refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
+                            #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
                             
                             # main
-                            #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
+                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
 
 
