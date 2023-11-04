@@ -661,17 +661,21 @@ def train(args, model, classifier=None, num_classes=None):
                         if args.aug_type == "double_crop":
                             logits_crop2, feat_labeled_crop2 = model(x_crop2)
 
+                            ### Loss on features:
+                            ## KL on features without softmax [unstable negative large values]:
                             #refine_loss = 0.0001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
                             #refine_loss = 0.00001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
                             #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
+                            #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') ) #reduction='sum')
 
                             #refine_loss = 0.00005 * F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') #reduction='sum')
                             #refine_loss = 0.00005 * F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') #reduction='sum')
 
+                            ## KL on features with (softmax + log separately) from the low data paper [unstable calculations with 0 division]:
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1).log(), feat_labeled_crop2.softmax(dim=-1), reduction='sum') # from SAM
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1).log(), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
                             
-                            '''
+                            ''' Print details:
                             print()
                             print("____Before")
                             print(feat_labeled_crop)
@@ -697,34 +701,35 @@ def train(args, model, classifier=None, num_classes=None):
                             print(refine_loss.item())
                             '''
 
-
-                            # no log (experimental); originally the input better be in log space (gives negative loss but acc better for some reason) 
+                            ## (experimental) KL on features with softmax but no log [originally the input better be in log space (gives negative loss but acc better for some reason)]
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
                             
-                            # main
+                            ## (main) KL on features with log_softmax similar to the low data paper [more stable]:
                             refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
-
 
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1), reduction='batchmean') #, log_target=True) #reduction='sum')
                             #for pytroch >= 1.6.0 #refine_loss = kl_loss(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1)) #, reduction='batchmean', log_target=True) #reduction='sum')
 
 
+                            ### Loss on logits:
+                            ## KL on logits with log_softmax:
                             #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
                             #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
                             
+                            ## KL on logits without softmax [unstable negative large values]:
+                            #refine_loss = abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
+                            #refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits_crop2.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())                            
+
                             
+                            ### Experimental options:
                             #refine_loss = abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')                            
                             #refine_loss = refine_loss * (ce_loss/refine_loss)
 
-                            #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') ) #reduction='sum')
-
                             #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop2, feat_labeled_crop, reduction='batchmean') ) #reduction='sum')
                             #refine_loss = 0.00005 * abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
-                            #refine_loss = abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
 
-                            #refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits_crop2.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
 
                         elif args.aug_type == "single_crop":
 
