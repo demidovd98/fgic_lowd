@@ -174,34 +174,13 @@ def get_loader(args):
 
     elif args.dataset == 'cars':
         trainset = CarsDataset(
-                            # os.path.join(args.data_root,'devkit/cars_train_annos.mat'),
-                            # os.path.join(args.data_root,'cars_train'),
-                            # os.path.join(args.data_root,'devkit/cars_meta.mat'),
-                            # cleaned=os.path.join(data_dir,'cleaned.dat'),
-                            
                             root=args.data_root, #my
                             is_train=True, #my
-
-                            # cleaned=os.path.join(data_dir,'cleaned.dat'),
-
                             transform=transforms.Compose([
-                                    # transforms.Resize((600, 600), Image.BILINEAR),
-                                    # transforms.RandomCrop((448, 448)),
-                                    # transforms.RandomHorizontalFlip(),
-                                    # AutoAugImageNetPolicy(),
-                                    # transforms.ToTensor(),
-                                    # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                                    
-                                    
-                                    #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
                                     transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
                                     transforms.RandomCrop((args.img_size, args.img_size)),
-
-                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (from FFVT) mb instead of imagenet?
                                     AutoAugImageNetPolicy(),
-
                                     transforms.RandomHorizontalFlip(),  # !!! FLIPPING in dataset.py !!!
-
                                     transforms.ToTensor(),
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ]),
@@ -209,27 +188,11 @@ def get_loader(args):
                             )
 
         testset = CarsDataset(
-                            # os.path.join(args.data_root,'cars_test_annos_withlabels.mat'),
-                            # os.path.join(args.data_root,'cars_test'),
-                            # os.path.join(args.data_root,'devkit/cars_meta.mat'),
-                            # cleaned=os.path.join(data_dir,'cleaned_test.dat'),
-
                             args.data_root, #my
                             is_train=False,
-
-                            # cleaned=os.path.join(data_dir,'cleaned_test.dat'),
-
                             transform=transforms.Compose([
-                                    # transforms.Resize((600, 600), Image.BILINEAR),
-                                    # transforms.CenterCrop((448, 448)),
-                                    # transforms.ToTensor(),
-                                    # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                                    
-                                    
-                                    #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
                                     transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
                                     transforms.CenterCrop((args.img_size, args.img_size)),
-
                                     transforms.ToTensor(),
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ]),
