@@ -168,8 +168,12 @@ def get_loader(args):
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
         '''
 
-        trainset = eval(args.dataset)(root=args.data_root, is_train=True, transform=train_transform, split=args.split, vanilla=args.vanilla)
-        testset = eval(args.dataset)(root=args.data_root, is_train=False, transform=test_transform, split=args.split, vanilla=args.vanilla)
+        trainset = eval(args.dataset)(args=args, is_train=True, transform=train_transform,
+                                      #root=args.data_root, split=args.split, vanilla=args.vanilla, aug_type=args.aug_type, preprocess_full_ram=args.preprocess_full_ram
+                                      )
+        testset = eval(args.dataset)(args=args, is_train=False, transform=test_transform,
+                                     #root=args.data_root, split=args.split, vanilla=args.vanilla, aug_type=args.aug_type, preprocess_full_ram=args.preprocess_full_ram
+                                     )
 
 
     elif args.dataset == 'cars':
@@ -179,10 +183,9 @@ def get_loader(args):
                             # os.path.join(args.data_root,'devkit/cars_meta.mat'),
                             # cleaned=os.path.join(data_dir,'cleaned.dat'),
                             
-                            root=args.data_root, #my
+                            args=args, # my
+                            #root=args.data_root, #my
                             is_train=True, #my
-
-                            # cleaned=os.path.join(data_dir,'cleaned.dat'),
 
                             transform=transforms.Compose([
                                     # transforms.Resize((600, 600), Image.BILINEAR),
@@ -205,7 +208,6 @@ def get_loader(args):
                                     transforms.ToTensor(),
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ]),
-                            split=args.split
                             )
 
         testset = CarsDataset(
@@ -214,10 +216,9 @@ def get_loader(args):
                             # os.path.join(args.data_root,'devkit/cars_meta.mat'),
                             # cleaned=os.path.join(data_dir,'cleaned_test.dat'),
 
-                            args.data_root, #my
-                            is_train=False,
-
-                            # cleaned=os.path.join(data_dir,'cleaned_test.dat'),
+                            args=args, # my
+                            #root = args.data_root, #my
+                            is_train=False, # my
 
                             transform=transforms.Compose([
                                     # transforms.Resize((600, 600), Image.BILINEAR),
@@ -233,7 +234,6 @@ def get_loader(args):
                                     transforms.ToTensor(),
                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ]),
-                            split=args.split
                             )
 
 
@@ -342,7 +342,7 @@ def get_loader(args):
                               batch_size=args.train_batch_size,
                               
                               #num_workers=4,
-                              num_workers=8, #20,
+                              num_workers=4, #20,
 
                               pin_memory=True)
     test_loader = DataLoader(testset,
@@ -350,7 +350,7 @@ def get_loader(args):
                              batch_size=args.eval_batch_size,
 
                              #num_workers=4,
-                             num_workers=8, ##20,
+                             num_workers=4, ##20,
 
                              pin_memory=True) if testset is not None else None
 

@@ -278,7 +278,7 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
                           disable=args.local_rank not in [-1, 0])
     loss_fct = torch.nn.CrossEntropyLoss()
     for step, batch in enumerate(epoch_iterator):
-        #wandb.log({"step": step})
+        ##wandb.log({"step": step})
 
         batch = tuple(t.to(args.device) for t in batch)
         #x, y = batch
@@ -854,8 +854,13 @@ def train(args, model, classifier=None, num_classes=None):
         all_preds, all_label = all_preds[0], all_label[0]
         accuracy = simple_accuracy(all_preds, all_label)
         accuracy = torch.tensor(accuracy).to(args.device)
-        dist.barrier()
-        train_accuracy = reduce_mean(accuracy, args.nprocs)
+
+        if args.local_rank != -1:
+            dist.barrier()
+            train_accuracy = reduce_mean(accuracy, args.nprocs)
+        else:
+            train_accuracy = accuracy
+
         train_accuracy = train_accuracy.detach().cpu().numpy()
 
         writer.add_scalar("train/accuracy", scalar_value=train_accuracy, global_step=global_step)
@@ -948,12 +953,13 @@ def main():
     
     parser.add_argument('--vanilla', action='store_true',
                         help="Whether to use the vanilla model")
-    parser.add_argument("--split", required=True,
+    parser.add_argument("--split", # required=True,
                         choices=["1i", "1p", "2", "3", "4", "5", "10", "15", "30", "50", "100"],
+                        default=None,
                         help="Name of the split")
 
-    parser.add_argument("--aug_type", choices=["single_crop", "double_crop", "none"],
-                        default="double_crop",
+    parser.add_argument("--aug_type", choices=["single_crop", "double_crop"],
+                        default=None,
                         help="Which architecture to use.")
 
     parser.add_argument('--sam', action='store_true',
@@ -964,10 +970,12 @@ def main():
                         help="Whether to use pre-trained model from the timm library")        
     parser.add_argument('--saliency', action='store_true',
                         help="Whether to use saliency information (foreground/nackground mask)")
-
-    parser.add_argument("--lr_ratio", default=1.0, type=float, required=True,
+    parser.add_argument('--preprocess_full_ram', action='store_true',
+                        help="Whether to preprocess full dataset and upload it to RAM before training")
+    
+    parser.add_argument("--lr_ratio", default=1.0, type=float, # required=True,
                         help="Learning rate ratio for the last classification layer.")
-    parser.add_argument("--dist_coef", default=0.1, type=float, required=True,
+    parser.add_argument("--dist_coef", default=0.1, type=float, # required=True,
                         help="Coefficient of the distillation loss contribution.")
     
 
