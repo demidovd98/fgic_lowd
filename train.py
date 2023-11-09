@@ -951,6 +951,9 @@ def main():
                              "0 (default value): dynamic loss scaling.\n"
                              "Positive power of 2: static loss scaling value.\n")
     
+    parser.add_argument("--dataload_workers", type=int, default=4,
+                        help="Number of workers for data pre-processing")
+        
     parser.add_argument('--vanilla', action='store_true',
                         help="Whether to use the vanilla model")
     parser.add_argument("--split", # required=True,

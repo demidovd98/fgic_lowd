@@ -349,7 +349,7 @@ def get_loader(args):
                               batch_size=args.train_batch_size,
                               
                               #num_workers=4,
-                              num_workers=4, #20,
+                              num_workers=args.dataload_workers, #4, 12, 20
 
                               pin_memory=True)
     test_loader = DataLoader(testset,
@@ -357,7 +357,7 @@ def get_loader(args):
                              batch_size=args.eval_batch_size,
 
                              #num_workers=4,
-                             num_workers=4, ##20,
+                             num_workers=args.dataload_workers, #4, 12, 20,
 
                              pin_memory=True) if testset is not None else None
 
