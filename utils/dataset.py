@@ -140,16 +140,10 @@ class Dataset_Meta:
             print(f"[INFO] Number of {self.set_name} samples:" , len(self.file_list), f", number of {self.set_name} labels:", len(self.ld_label_list))
 
         else:
-            if self.dataset_name == "CUB":
+            if self.dataset_name in ["CUB", "cars", "air"]:
                 self.file_list = self.child.file_list
                 if self.saliency:
                     self.file_list_full = self.child.file_list_full
-            elif self.dataset_name == "cars":
-                self.file_list = self.child.file_list
-                if self.saliency:
-                    self.file_list_full = self.child.file_list_full
-            elif self.dataset_name == "air":
-                raise NotImplementedError()
             else:
                 raise NotImplementedError()
             
@@ -157,7 +151,7 @@ class Dataset_Meta:
 
 
 
-        ''' # saliency preaparation (nerge for multiple datasets)
+        ''' # saliency preaparation (merge for multiple datasets)
         if self.saliency:
             print(f"[INFO] Preparing {self.set_name} shape_hw list...")
 
@@ -308,31 +302,10 @@ class Dataset_Meta:
 
 
         if not self.low_data:
-            if self.is_train:
-                if self.dataset_name == "CUB":
-                    #self.label = [x for i, x in zip(self.child.train_test_list, self.child.label_list) if i][:self.data_len]
-                    self.label = self.child.label_list[:self.data_len]
-                elif self.dataset_name == "cars":
-                    #self.label = [(torch.from_numpy(np.array( x[-2][0][0].astype(np.float32) )).long() - 1) for x in self.child.car_annotations][:self.data_len]
-                    #self.label = [(torch.from_numpy(np.array( x[-2][0][0].astype(np.float32) )).long() - 1) for x in self.child.label_list][:self.data_len]
-                    self.label = self.child.label_list[:self.data_len]
-                elif self.dataset_name == "air":
-                    raise NotImplementedError()
-                else:
-                    raise NotImplementedError()
-
+            if self.dataset_name in ["CUB", "cars", "air"]:
+                self.label = self.child.label_list[:self.data_len]
             else:
-                if self.dataset_name == "CUB":                    
-                    #self.label = [x for i, x in zip(self.child.train_test_list, self.child.label_list) if not i][:self.data_len]
-                    self.label = self.child.label_list[:self.data_len]
-                elif self.dataset_name == "cars":
-                    #self.label = [(torch.from_numpy(np.array( x[-2][0][0].astype(np.float32) )).long() - 1) for x in self.child.car_annotations][:self.data_len]
-                    #self.label = [(torch.from_numpy(np.array( x[-2][0][0].astype(np.float32) )).long() - 1) for x in self.child.label_list][:self.data_len]
-                    self.label = self.child.label_list[:self.data_len]
-                elif self.dataset_name == "air":
-                    raise NotImplementedError()
-                else:
-                    raise NotImplementedError()                
+                raise NotImplementedError()
         else:
             self.label = self.ld_label_list[:self.data_len]
 
@@ -341,17 +314,13 @@ class Dataset_Meta:
 
 
     def __getitem__(self, index):
-
         # set_seed = True
         # seed_my = 42
         # if set_seed:
         #     random.seed(seed_my + index)
         #     np.random.seed(seed_my + index)
         #     torch.manual_seed(seed_my + index)
-            
-        #     #
         #     torch.cuda.manual_seed(seed_my + index)
-        #     #
 
         if self.is_train:
             # if self.count < 5: print(self.count)
@@ -364,7 +333,6 @@ class Dataset_Meta:
 
             # if self.count < 5: print(img.shape)
             # if self.count < 5: print(mask.shape)
-
             # print(img_name)
             # print(img.shape)
             # print(mask.shape)
@@ -376,8 +344,6 @@ class Dataset_Meta:
             #rand_crop_im_mask = True # True
             #if rand_crop_im_mask:
             if (self.saliency) or (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
-                #print("Crop_inf")
-
                 h_max_img = img.shape[0]
                 w_max_img = img.shape[1]
 
@@ -397,7 +363,7 @@ class Dataset_Meta:
                         #portion1side_2 = torch.distributions.uniform.Uniform(0.67,0.8).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
                         portion1side_2 = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
                         
-                h_crop_mid_img = int(h_max_img * portion1side) 
+                h_crop_mid_img = int(h_max_img * portion1side)
                 ##h_crop_mid = 368 # 384 (92%), 368 (84%), 352 (77%), 336 (70%), 320 (64%), 304 (57%)
                 #h_crop_mid_img = int(h_max_img * 0.5) #* 0.7) # 384 (92% - 0.96), 368 (84% - 0.92), 352 (77% - 0.88), 336 (70% - 0.84), 320 (64% - 0.80), 304 (57% - 0.75), 282 (50 % - 0.7)
 
@@ -514,19 +480,19 @@ class Dataset_Meta:
             #     pass
 
 
-            # img = (img).astype(np.uint8) # for cars ?
+            # img = (img).astype(np.uint8) # for cars/air ? (works without it)
 
             img = Image.fromarray(img, mode='RGB')
 
             #if rand_crop_im_mask:
             if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
-                # img_crop = (img_crop).astype(np.uint8) # for cars ?
+                # img_crop = (img_crop).astype(np.uint8) # for cars/air ? (works without it)
 
                 img_crop = Image.fromarray(img_crop, mode='RGB')
                 
                 #if double_crop:
                 if (self.aug_type == "double_crop"):
-                    # img_crop2 = (img_crop2).astype(np.uint8) # for cars ?
+                    # img_crop2 = (img_crop2).astype(np.uint8) # for cars/air ? (works without it)
 
                     img_crop2 = Image.fromarray(img_crop2, mode='RGB')
     
@@ -562,49 +528,65 @@ class Dataset_Meta:
                     
                     if self.dataset_name == "CUB":
                         transform_img_flip = transforms.Compose([
-                                        #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                                        #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                                        #transforms.RandomCrop((args.img_size, args.img_size)),
-                                        
-                                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                        #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
-                                        transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                        #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                            #transforms.RandomCrop((args.img_size, args.img_size)),
+                            
+                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
+                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
-                                        transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                        #AutoAugImageNetPolicy(),
-                                        
-                                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+                            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                            #AutoAugImageNetPolicy(),
+                            
+                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
-                                        transforms.ToTensor(),
-                                        #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                                        ])                        
+                            transforms.ToTensor(),
+                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                            ])
                     elif self.dataset_name == "cars":
                         transform_img_flip = transforms.Compose([
-                                        #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                                        #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                                        #transforms.RandomCrop((args.img_size, args.img_size)),
-                                        
-                                        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                        transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                        #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                            #transforms.RandomCrop((args.img_size, args.img_size)),
+                            
+                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
-                                        #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                        AutoAugImageNetPolicy(),
-                                        
-                                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+                            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                            AutoAugImageNetPolicy(),
+                            
+                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
-                                        transforms.ToTensor(),
-                                        #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                                        ])
+                            transforms.ToTensor(),
+                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                            ])
                     elif self.dataset_name == "air":
-                        raise NotImplementedError()
+                        transform_img_flip = transforms.Compose([
+                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                            #transforms.RandomCrop((args.img_size, args.img_size)),
+                            
+                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+
+                            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                            AutoAugImageNetPolicy(),
+                            
+                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                            transforms.ToTensor(),
+                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                            ])
                     else:
                         raise NotImplementedError()
 
-                
                 
                     #if rand_crop_im_mask:
                     if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
@@ -612,7 +594,7 @@ class Dataset_Meta:
                         img_crop = transform_img_flip(img_crop)
 
                         #if double_crop:
-                        if (self.aug_type == "double_crop"):                            
+                        if (self.aug_type == "double_crop"):
                             #img_crop2 = self.transform(img_crop2)
 
                             if self.dataset_name == "CUB":
@@ -637,28 +619,44 @@ class Dataset_Meta:
                                     ])
                             elif self.dataset_name == "cars":
                                 transform_img_flip2 = transforms.Compose([
-                                                #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                                                #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                                                #transforms.RandomCrop((args.img_size, args.img_size)),
-                                                
-                                                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                                transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                                #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
-                                                #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                                AutoAugImageNetPolicy(),
-                                                
-                                                transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
-                                                transforms.ToTensor(),
-                                                #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                                                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                                                ])
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
                             elif self.dataset_name == "air":
-                                raise NotImplementedError()
+                                transform_img_flip2 = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
                             else:
                                 raise NotImplementedError()
-
 
 
                             img_crop2 = transform_img_flip2(img_crop2)
@@ -684,49 +682,65 @@ class Dataset_Meta:
 
                         if self.dataset_name == "CUB":
                             transform_img_flip = transforms.Compose([
-                                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                                            #transforms.RandomCrop((args.img_size, args.img_size)),
-                                            
-                                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                            #transforms.Resize((400, 400),Image.BILINEAR), # my for bbox
-                                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                #transforms.RandomCrop((args.img_size, args.img_size)),
+                                
+                                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                #transforms.Resize((400, 400),Image.BILINEAR), # my for bbox
+                                #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
-                                            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                            
-                                            transforms.RandomHorizontalFlip(p=1.0), # !!! FLIPPING in dataset.py !!!
-                                            #transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+                                transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                
+                                transforms.RandomHorizontalFlip(p=1.0), # !!! FLIPPING in dataset.py !!!
+                                #transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
-                                            transforms.ToTensor(),
-                                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                                            ])
+                                transforms.ToTensor(),
+                                #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                ])
                         elif self.dataset_name == "cars":
                             transform_img_flip = transforms.Compose([
-                                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                                            #transforms.RandomCrop((args.img_size, args.img_size)),
-                                            
-                                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                #transforms.RandomCrop((args.img_size, args.img_size)),
+                                
+                                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
-                                            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                            AutoAugImageNetPolicy(),
-                                            
-                                            #transforms.RandomHorizontalFlip(p=1.0), # !!! FLIPPING in dataset.py !!!
-                                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+                                #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                AutoAugImageNetPolicy(),
+                                
+                                transforms.RandomHorizontalFlip(p=1.0), # !!! FLIPPING in dataset.py !!!
+                                #transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
-                                            transforms.ToTensor(),
-                                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                                            ])
+                                transforms.ToTensor(),
+                                #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                ])
                         elif self.dataset_name == "air":
-                            raise NotImplementedError()
+                            transform_img_flip = transforms.Compose([
+                                #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                #transforms.RandomCrop((args.img_size, args.img_size)),
+                                
+                                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+
+                                #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                AutoAugImageNetPolicy(),
+
+                                transforms.RandomHorizontalFlip(p=1.0), # !!! FLIPPING in dataset.py !!!
+
+                                transforms.ToTensor(),
+                                #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                ])
                         else:
                             raise NotImplementedError()
-
 
                         img = transform_img_flip(img)
 
@@ -998,7 +1012,7 @@ class Dataset_Meta:
             #     pass            
             
 
-            # img = (img).astype(np.uint8) # for cars ?
+            # img = (img).astype(np.uint8) # for cars ? (works without it)
 
             img = Image.fromarray(img, mode='RGB')
 
@@ -1096,11 +1110,11 @@ class Dataset_Meta:
         if w_max <=1: print("[WARNING] bad_w:", w_max)
 
 
-        ''' #downsize large images (if not enough RAM)
+        ''' #downsize large images (if not enough RAM or if pre-processing full dataset before)
 
-        #img_temp = (img_temp).astype(np.uint8) # required?
+        #img_temp = (img_temp).astype(np.uint8) # required? (works without it)
 
-        if (h_max > 500) or (w_max > 500):  # for nabirds only
+        if (h_max > 500) or (w_max > 500):  # for large images only
 
             if id_f < 10:
                 print("Before:", h_max, w_max)
@@ -4073,6 +4087,7 @@ class CarsDataset(Dataset_Meta):
                          )
 
 
+
         '''
             if self.is_train:
                 print("[INFO] Preparing train shape_hw list...")
@@ -5383,12 +5398,19 @@ class CarsDataset(Dataset_Meta):
 
 
 
-class FGVC_aircraft():
+#class FGVC_aircraft():
+class FGVC_aircraft(Dataset_Meta):
     #def __init__(self, root, is_train=True, data_len=None, transform=None):
-    def __init__(self, root, inter_low_path=None, inter_img_path=None, is_train=True, data_len=None, transform=None, # general class parameters
-                 vanilla=None, split=None, low_data=True, saliency=False, aug_type="none", # general class parameters
+    # def __init__(self, root, inter_low_path=None, inter_img_path=None, is_train=True, data_len=None, transform=None, # general class parameters
+    #              vanilla=None, split=None, low_data=True, saliency=False, aug_type="none", # general class parameters
+    #              # class-specific parameters
+    #              ):
+
+    def __init__(self, args, #root, split=None, vanilla=None, saliency=False, preprocess_full_ram=False, aug_type=None, # external general class parameters
+                 is_train=True, transform=None,  # mandatory internal general class parameters
+                 data_len=None, inter_low_path=None, inter_img_path=None, # extra internal general class parameters
                  # class-specific parameters
-                 ):
+                ):
 
         '''
         self.base_folder = "data/images"
@@ -5405,35 +5427,62 @@ class FGVC_aircraft():
         saliency_check = False #False
         '''
 
+        if args.split is not None:
+            low_data = True
 
-        if low_data:
             if inter_low_path is not None:
                 self.inter_low_path = inter_low_path
             else:
                 self.inter_low_path = 'data/low_data/'
+        else:
+            low_data = False
 
         if inter_img_path is not None:
             self.inter_img_path = inter_img_path
         else:
             self.inter_img_path = 'data/images'
 
-
-        train_label_file = open(os.path.join(self.root, 'data', 'images_variant_trainval.txt'))
-        test_label_file = open(os.path.join(self.root, 'data', 'images_variant_test.txt'))
-
-        label_names_file = open(os.path.join(self.root, 'data', 'variants.txt'))
-
-        #cls_idx = []
-        cls_name = []
-        #cls_idx_name = []
-        for line in label_names_file:
-            cls_name.append(line[:-1])
-            #if (idx<5): print(cls_idx_tmp, cls_name_tmp)
-        cls_name = np.asarray(cls_name)
+        label_names_file = open(os.path.join(args.data_root, 'data', 'variants.txt'))
 
 
-        if not self.low_data: 
+        if not low_data:
+            cls_name = []
+            for line in label_names_file:
+                cls_name.append(line[:-1])
+            cls_name = np.asarray(cls_name)
 
+            if is_train:
+                self.full_data_set = open(os.path.join(args.data_root, 'data', 'images_variant_trainval.txt'))
+            else:
+                self.full_data_set = open(os.path.join(args.data_root, 'data', 'images_variant_test.txt'))
+
+            self.data_set = []
+            for line in self.full_data_set:
+                cls_temp = (' '.join(line[:-1].split(' ')[1:]))
+                assert cls_temp in cls_name
+                cls_id = np.where(cls_name == cls_temp)[0]
+
+                #img_label.append( [os.path.join(self.train_img_path, line[:-1].split(' ')[0] + '.jpg'), cls_id] )
+                self.data_set.append( [os.path.join(line[:-1].split(' ')[0] + '.jpg'), cls_id] )
+                # self.img_label = img_label[:data_len]
+
+            self.file_list = [image_name for image_name, target_class in self.data_set]
+            if args.saliency:
+                self.file_list_full = [join(args.data_root, self.inter_img_path, image_name) for image_name, target_class in self.data_set]
+
+            self.label_list = [target_class for image_name, target_class in self.data_set]
+
+
+        super().__init__(args=args, child=self, dataset_name="air", is_train=is_train, transform=transform, 
+                         low_data=low_data, data_len=data_len
+                         )
+
+
+
+        '''
+        if not low_data: 
+
+            
             train_img_label = []
             for line in train_label_file:
                 cls_temp = ( ' '.join(line[:-1].split(' ')[1:]) )
@@ -5455,7 +5504,7 @@ class FGVC_aircraft():
                 #test_img_label.append( [os.path.join(self.test_img_path, line[:-1].split(' ')[0] + '.jpg'), cls_id] )
                 test_img_label.append( [os.path.join(line[:-1].split(' ')[0] + '.jpg'), cls_id] )
             self.test_img_label = test_img_label[:data_len]
-
+            
 
             if self.is_train:
                 print("[INFO] Preparing train shape_hw list...")
@@ -5508,7 +5557,7 @@ class FGVC_aircraft():
 
                     train_file_list.append(image_name)
                     train_file_list_full.append(img_name)
-
+                
 
             else:
                 print("[INFO] Preparing test shape_hw list...")
@@ -5550,6 +5599,7 @@ class FGVC_aircraft():
 
                     test_file_list.append(image_name)
                     test_file_list_full.append(img_name)
+
 
         else:
 
@@ -5598,10 +5648,10 @@ class FGVC_aircraft():
                     ld_label_list.append(int(line[:-1].split(' ')[-1])) #- 1)
 
                 print("[INFO] Test samples number:" , len(test_file_list), ", and labels number:", len(ld_label_list))
-            
+        ''' 
 
 
-
+        '''
         ## crop
         if self.is_train:
 
@@ -5618,9 +5668,9 @@ class FGVC_aircraft():
                 else:
                     #scipy.misc.imsave('/l/users/20020067/Activities/FGIC/FFVT/Combined/FFVT_my/U2Net/images/img.png', train_img_temp)
                     train_img_path = os.path.join(self.train_img_path, train_file_list)
-                    '''
-                    mask_u2, x_u2, y_u2, h_u2, w_u2 = mask_hw(full_ds=full_ds, img_path=train_img_path, shape_hw=(h_max, w_max))
-                    '''
+                    
+                    #mask_u2, x_u2, y_u2, h_u2, w_u2 = mask_hw(full_ds=full_ds, img_path=train_img_path, shape_hw=(h_max, w_max))
+                    
                     #print(mask_u2, x_u2, y_u2, h_u2, w_u2)
 
 
@@ -5788,7 +5838,6 @@ class FGVC_aircraft():
             self.train_imgname = [x for x in train_file_list[:data_len]]
 
 
-
         else:
 
             self.test_img = []
@@ -5803,11 +5852,9 @@ class FGVC_aircraft():
 
                 else:
                     test_img_path = os.path.join(self.test_img_path, test_file_list)
-                    '''
-                    mask_u2, x_u2, y_u2, h_u2, w_u2 = mask_hw(full_ds=full_ds, img_path=test_img_path, shape_hw=(h_max, w_max))
-                    '''
+                    #mask_u2, x_u2, y_u2, h_u2, w_u2 = mask_hw(full_ds=full_ds, img_path=test_img_path, shape_hw=(h_max, w_max))
+                    
             
-
             print("[INFO] Preparing test files...")
             i = 0
             for test_file in test_file_list[:data_len]:
@@ -5969,10 +6016,11 @@ class FGVC_aircraft():
                 self.test_label = ld_label_list[:data_len]            
 
             self.test_imgname = [x for x in test_file_list[:data_len]]
+        '''
 
 
 
-    def __getitem__(self, index):
+    '''def __getitem__(self, index):
 
         saliency_check = False #False
 
@@ -6491,14 +6539,16 @@ class FGVC_aircraft():
                 return img, target, mask
             else:
                 return img, target
+    '''
 
 
 
-    def __len__(self):
+    '''def __len__(self):
         if self.is_train:
             return len(self.train_label)
         else:
             return len(self.test_label)
+    '''
 
 
 
