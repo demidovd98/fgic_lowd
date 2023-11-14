@@ -500,6 +500,11 @@ def train(args, model, classifier=None, num_classes=None):
     if args.local_rank != -1:
         model = DDP(model, message_size=250000000, gradient_predivide_factor=get_world_size())
 
+
+    ## scheduler for distialtion loss coeffiecient
+    distill_scheduler = DistillScheduler(args)
+
+
     # Train!
     start_time = time.time()
     logger.info("***** Running training *****")
@@ -765,7 +770,7 @@ def train(args, model, classifier=None, num_classes=None):
                             #loss = ce_loss + (0.1 * refine_loss) #0.01
                             #loss = ce_loss + (0.01 * refine_loss) #0.01
 
-                            loss = (0.5 * ce_loss) + (0.5 * refine_loss * args.dist_coef) #0.01 # main
+                            loss = (0.5 * ce_loss) + (0.5 * refine_loss * distill_scheduler.dist_coeff) #0.01 # main
 
                             #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 10.0) #0.01 # main
                             #loss = (0.5 * ce_loss) + (0.5 * refine_loss) #0.01
@@ -851,6 +856,10 @@ def train(args, model, classifier=None, num_classes=None):
                 if global_step % t_total == 0:
                     break
 
+                distill_scheduler.step(global_step)
+                print("Distillation coefficient:", distill_scheduler.dist_coeff)
+
+                
         all_preds, all_label = all_preds[0], all_label[0]
         accuracy = simple_accuracy(all_preds, all_label)
         accuracy = torch.tensor(accuracy).to(args.device)
@@ -978,9 +987,18 @@ def main():
     
     parser.add_argument("--lr_ratio", default=1.0, type=float, # required=True,
                         help="Learning rate ratio for the last classification layer.")
-    parser.add_argument("--dist_coef", default=0.1, type=float, # required=True,
+
+    ## Distillation loss coefficient
+    parser.add_argument("--dist_coef_dacay_type", choices=["decay", "increase", "constant"],
+                        default="constant",
+                        help="How to decay the distillation coefficient during training.")
+
+    parser.add_argument("--dist_coef", default=0.001, type=float, 
                         help="Coefficient of the distillation loss contribution.")
     
+    parser.add_argument("--min_dist_coeff", default=0.001, type=float)
+
+    parser.add_argument("--dist_coef_decay_rate", default=1.0, type=float)
 
     #parser.add_argument('--data_root', type=str, default='./data') # Original
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets') # local

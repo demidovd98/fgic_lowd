@@ -5,6 +5,44 @@ import torch
 import torch.distributed as dist
 
 
+class DistillScheduler(object):
+
+    def __init__(self, args):
+        self.args = args
+        self.total_steps = args.num_steps
+        self.max_coeff = args.dist_coef  # Assuming this is the initial (maximum) value
+        self.min_coeff = args.min_dist_coeff
+        self.decay_rate = args.dist_coef_decay_rate
+
+        self.decay_per_step = (self.max_coeff - self.min_coeff) / self.total_steps
+        self.dist_coeff = self.max_coeff
+
+    def step(self, global_step):
+        """
+        Update the coefficient based on the current step.
+        
+        Args:
+            global_step (int): Current global step in the training process.
+        """
+
+        if self.args.dist_coef_dacay_type == 'decay': 
+            self.linear_decay(global_step)
+        elif self.args.dist_coef_dacay_type == 'increase':
+            self.linear_increase(global_step)
+        elif self.args.dist_coef_dacay_type == 'constant':
+            self.dist_coeff = self.max_coeff
+        else:
+            raise ValueError("Unknown distillation coefficient schedule: %s" % self.args.decay)
+    
+    def linear_increase(self, global_step):
+        # Example: Linear decay
+        decay = (self.total_steps - global_step) * self.decay_rate / self.total_steps
+        # print("decay: ", decay)
+        self.dist_coeff = max(self.min_coeff, self.dist_coeff - decay)
+
+    def linear_decay(self, global_step):
+        self.dist_coeff = max(self.min_coeff, self.max_coeff - global_step * self.decay_per_step) 
+
 
 class FocalLoss(torch.nn.Module):
     def __init__(self, alpha=1, gamma=2, reduce=True):
