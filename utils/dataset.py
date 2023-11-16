@@ -29,7 +29,10 @@ from skimage import transform as transform_sk
 
 #import U2Net
 #from U2Net.u2net_test import mask_hw
-#
+
+from timm.data.auto_augment import rand_augment_transform
+from _extra.asym_siam.moco.loader import CropsTransform, GaussianBlur
+
 
 
 # Try to add?
@@ -61,7 +64,10 @@ class Dataset_Meta:
         self.vanilla = args.vanilla
 
         self.low_data = low_data #True
+
         self.aug_type = args.aug_type
+        self.aug_crop = args.aug_crop
+        self.aug_vanilla = args.aug_vanilla
 
         #saliency_check = False #False
         self.saliency = args.saliency
@@ -341,6 +347,7 @@ class Dataset_Meta:
                 # img = scipy.misc.imread(img)
                 img = self.preprocess(child=self.child, id_f=index, path=img)
 
+
             #rand_crop_im_mask = True # True
             #if rand_crop_im_mask:
             if (self.saliency) or (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
@@ -355,12 +362,15 @@ class Dataset_Meta:
                     portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.7,0.95,  0.6,0.8
                     #if index < 10: print(portion1side)
                 else:
-                    #portion1side = torch.distributions.uniform.Uniform(0.5,0.67).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    ##portion1side = torch.distributions.uniform.Uniform(0.5,0.67).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
                     portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    ##portion1side = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    #portion1side = torch.distributions.uniform.Uniform(0.2,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
 
                     #if double_crop:
                     if (self.aug_type == "double_crop"):
-                        #portion1side_2 = torch.distributions.uniform.Uniform(0.67,0.8).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
+                        ##portion1side_2 = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
+                        ##portion1side_2 = torch.distributions.uniform.Uniform(0.67,0.8).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
                         portion1side_2 = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
                         
                 h_crop_mid_img = int(h_max_img * portion1side)
@@ -479,7 +489,6 @@ class Dataset_Meta:
             # except:
             #     pass
 
-
             # img = (img).astype(np.uint8) # for cars/air ? (works without it)
 
             img = Image.fromarray(img, mode='RGB')
@@ -487,13 +496,11 @@ class Dataset_Meta:
             #if rand_crop_im_mask:
             if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
                 # img_crop = (img_crop).astype(np.uint8) # for cars/air ? (works without it)
-
                 img_crop = Image.fromarray(img_crop, mode='RGB')
                 
                 #if double_crop:
                 if (self.aug_type == "double_crop"):
                     # img_crop2 = (img_crop2).astype(np.uint8) # for cars/air ? (works without it)
-
                     img_crop2 = Image.fromarray(img_crop2, mode='RGB')
     
 
@@ -520,76 +527,86 @@ class Dataset_Meta:
             flip_mask_as_image = False #True # if False - turn on RandomHorizontalFlip in data_utils !!!
             flipped = False # temp
            
+            #random_choice_vanilla = True
+        
+
             if self.transform is not None:
                 #img = self.transform(img)
 
                 if not flip_mask_as_image: # normal
+
                     img = self.transform(img)
                     
-                    if self.dataset_name == "CUB":
-                        transform_img_flip = transforms.Compose([
-                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                            #transforms.RandomCrop((args.img_size, args.img_size)),
-                            
-                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                            #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
-                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
-
-                            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                            #AutoAugImageNetPolicy(),
-                            
-                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
-
-                            transforms.ToTensor(),
-                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                            ])
-                    elif self.dataset_name == "cars":
-                        transform_img_flip = transforms.Compose([
-                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                            #transforms.RandomCrop((args.img_size, args.img_size)),
-                            
-                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
-
-                            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                            AutoAugImageNetPolicy(),
-                            
-                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
-
-                            transforms.ToTensor(),
-                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                            ])
-                    elif self.dataset_name == "air":
-                        transform_img_flip = transforms.Compose([
-                            #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                            #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
-                            #transforms.RandomCrop((args.img_size, args.img_size)),
-                            
-                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                            transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                            #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
-
-                            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                            AutoAugImageNetPolicy(),
-                            
-                            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
-
-                            transforms.ToTensor(),
-                            #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                            ])
-                    else:
-                        raise NotImplementedError()
-
-                
                     #if rand_crop_im_mask:
                     if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+
+                        if self.aug_crop is not None:
+                            transform_img_flip = self.get_transforms()
+                        else:
+                            if self.dataset_name == "CUB":
+                                transform_img_flip = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    #transforms.Resize((160, 160),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+
+                                    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    #AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "cars":
+                                transform_img_flip = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox                                
+                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "air":
+                                transform_img_flip = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            else:
+                                raise NotImplementedError()
+
+
                         #img_crop = self.transform(img_crop)
                         img_crop = transform_img_flip(img_crop)
 
@@ -597,6 +614,9 @@ class Dataset_Meta:
                         if (self.aug_type == "double_crop"):
                             #img_crop2 = self.transform(img_crop2)
 
+                            # if self.aug_crop is not None:
+                            #     transform_img_flip2 = self.get_transforms()
+                            # else:
                             if self.dataset_name == "CUB":
                                 transform_img_flip2 = transforms.Compose([
                                     #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
@@ -751,6 +771,7 @@ class Dataset_Meta:
                             #if double_crop:
                             if (self.aug_type == "double_crop"):
                                 img_crop2 = transform_img_flip(img_crop2)
+
 
             # My:
             # #import time
@@ -1070,12 +1091,14 @@ class Dataset_Meta:
                 if (self.aug_type == "double_crop"):
                     #return img, img_crop, img_crop, target # accidentally
                     return img, img_crop, img_crop2, target
+                elif (self.aug_type == "single_crop"):
+                    return img, img_crop, target
                 else:
                     #if crop_only:
                     if self.vanilla:
                         return img, target
-                    else:                    
-                        return img, img_crop, target
+                    else:
+                        raise NotImplementedError()
         else:
             if self.saliency:
                 return img, target, mask
@@ -1278,6 +1301,131 @@ class Dataset_Meta:
 
         return img_temp
 
+
+
+    def get_transforms(self):
+
+        #if args.aug_crop is not None:
+        ## From asym_siam:
+        normalize = transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+            )
+        # MoCo v2's aug: similar to SimCLR https://arxiv.org/abs/2002.05709
+        if self.aug_crop == "aug_multicrop":
+            #ratio_range=(0.14,1.0)
+            ratio_range=(0.3,0.8)
+        else:
+            #ratio_range=(0.2,1.0)
+            if self.aug_crop == "aug_asymmAugs":
+                ratio_range=(0.5,0.8)    
+            else:
+                ratio_range=(0.5,1.0)
+
+        augmentation = [
+            transforms.RandomResizedCrop(224, scale=ratio_range),
+            transforms.RandomApply(
+                [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)],  # not strengthened
+                p=0.8,
+            ),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ]
+
+
+        """
+        # --------------------------------------------------------------------------- #
+        #                           Asymmetric Augmentations                          #
+        # --------------------------------------------------------------------------- #
+        asymmetric augmentation recipes are formed by stronger and weaker augmentation
+        in source and target. Stronger augmentation introduces a higher variance, that
+        hurts target but helps source, and vice versa for weaker augmentation.
+        # --------------------------------------------------------------------------- #
+        """
+        if self.aug_crop == "aug_asymmAugs":
+            augmentation_stronger = [
+                transforms.RandomResizedCrop(224, scale=ratio_range),
+                transforms.RandomApply(
+                    [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)],  # not strengthened
+                    p=0.8,
+                ),
+                transforms.RandomGrayscale(p=0.2),
+                transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
+                transforms.RandomHorizontalFlip(),
+                rand_augment_transform(
+                    "rand-m10-n2-mstd0.5", {"translate_const": 100},
+                ),
+                transforms.ToTensor(),
+                normalize,
+            ]
+            augmentation_weaker = [
+                transforms.RandomResizedCrop(224),
+                #transforms.RandomResizedCrop(224, scale=(0.5,0.8)), #(0.5,0.8)), (0.2,0.8)), # (0.2, 1.0) try
+
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ]
+        
+        """
+        # --------------------------------------------------------------------------- #
+        #                                  MultiCrop                                  #
+        # --------------------------------------------------------------------------- #
+        Besides the two basic views needed for Siamese learning, MultiCrop takes
+        additional views from each image per iteration. To alleviate the added
+        computation cost, a common strategy is to have low-resolution crops
+        (e.g., 96×96) instead of standard-resolution crops (224×224) as added views.
+        As a side effect, inputting small crops can potentially increase the variance
+        for an encoder due to the size and crop-distribution changes.
+        # --------------------------------------------------------------------------- #
+        """
+        augmentation_mini = [
+            #transforms.RandomResizedCrop(96, scale=(0.05, 0.14)),
+            transforms.RandomResizedCrop(224, scale=ratio_range),
+
+            transforms.RandomApply(
+                [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)],  # not strengthened
+                p=0.8,
+            ),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ]
+
+        """
+        # --------------------------------------------------------------------------- #
+        #                                  ScaleMix                                   #
+        # --------------------------------------------------------------------------- #
+        ScaleMix generates new views of an image by mixing two views of potentially
+        different scales together via binary masking. The masking strategy follows
+        CutMix. where an entire region - denoted by a box with randomly sampled
+        coordinates - is cropped and pasted. Unlike CutMix, ScaleMix only operates on
+        views from the same image, and the output is a single view of standard size
+        (224x224). This single view can be regarded as an efficient approximation of
+        MultiCrop, without the need to process small crops separately.
+        # --------------------------------------------------------------------------- #
+        """
+        transform_cropAugs = CropsTransform(
+                #args,
+                key_transform=transforms.Compose(augmentation_weaker)
+                if (self.aug_crop == "aug_asymmAugs")
+                else transforms.Compose(augmentation),
+                query_mini_transform=transforms.Compose(augmentation_mini),
+                query_transform=transforms.Compose(augmentation_stronger)
+                if (self.aug_crop == "aug_asymmAugs")
+                else transforms.Compose(augmentation),
+                enable_scalemix=(self.aug_crop == "aug_scalemix"), #args.aug_scalemix,
+                enable_multicrop=(self.aug_crop == "aug_multicrop"), # args.aug_multicrop,
+                enable_asymm=(self.aug_crop == "aug_asymmAugs"), # args.aug_asymmAugs,
+                enable_mean_encoding=False, #args.enable_mean_encoding,
+            )
+        ##
+        
+        return transform_cropAugs
 
 
 

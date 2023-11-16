@@ -51,6 +51,13 @@ logger = logging.getLogger(__name__)
 
 def setup(args):
 
+    if args.name is None:
+        if args.vanilla:
+            args.name = f"{args.dataset}{args.split}_{args.model_type}_{args.model_name}_vanilla{args.vanilla}_augVanilla{args.aug_vanilla}_lrRat{args.lr_ratio}_steps{args.num_steps}"
+        else:
+            args.name = f"{args.dataset}{args.split}_{args.model_type}_{args.model_name}_vanilla{args.vanilla}_lrRat{args.lr_ratio}_augType{args.aug_type}_augCrop{args.aug_crop}_distCoef{args.dist_coef}_steps{args.num_steps}"
+
+
     # Prepare dataset
     if args.dataset == "cifar10":
         num_classes=10
@@ -84,8 +91,21 @@ def setup(args):
 
     args.data_root = '{}/{}'.format(args.data_root, dataset_path)
 
+
+
     if args.split is not None:
         print(f"[INFO] A {args.split} split is used")
+        
+        if args.lr_ratio is None:
+            if int(args.split) < 100: # round to the neasrest value with step 0.5
+                args.lr_ratio = round( (100.0 / int(args.split)) * 2 ) / 2
+            else: # 0.1 for 100% instead of 1.0
+                args.lr_ratio = 0.1
+    else:
+        print(f"[INFO] A standard training with 100% of labels")
+
+    if args.lr_ratio is None:
+        args.lr_ratio = 1.0 # 10.0 in sam
 
 
     # Prepare model
@@ -366,7 +386,7 @@ def train(args, model, classifier=None, num_classes=None):
 
     # Prepare optimizer and scheduler
     if args.model_type == "cnn":
-        lr_ratio = args.lr_ratio # ? round(100 / args.split) #0.1 #5.0 #10.0 # 1.0, 2.0 # useful for CUB
+        #lr_ratio = args.lr_ratio # ? round(100 / args.split) #0.1 #5.0 #10.0 # 1.0, 2.0 # useful for CUB
         lr_ratio_feats = 2.0
 
         #optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
@@ -384,7 +404,7 @@ def train(args, model, classifier=None, num_classes=None):
                 
                 # append layer parameters
                 if (name == "fc.weight") or (name == "fc.bias"):
-                    lr = args.learning_rate * lr_ratio
+                    lr = args.learning_rate * args.lr_ratio
                     print(f'{idx}: lr = {lr:.6f}, {name}')
                 # elif (150 <= idx <= 158): # 150 (last block of layer 4), 129 (full layer 4)
                 #     lr = args.learning_rate * lr_ratio_feats
@@ -421,26 +441,34 @@ def train(args, model, classifier=None, num_classes=None):
             #milestones = [6000, 12000, 18000, 24000, 30000]
             #milestones = [8000, 16000, 24000, 32000, 40000]
             #milestones = [10000, 20000, 30000, 40000]    
-
-            # milestones = [ int(args.num_steps * 0.2), # 8`000
-            #             int(args.num_steps * 0.4), # 16`000
-            #             int(args.num_steps * 0.6), # 24`000
-            #             int(args.num_steps * 0.8), # 32`000
-            #             int(args.num_steps * 1.0) ] # 40`000              
             '''
 
-            milestones = [ int(args.num_steps * 0.5), # 20`000
-                        int(args.num_steps * 0.75), # 30`000
-                        int(args.num_steps * 0.90), # 36`000
-                        int(args.num_steps * 0.95), # 38`000
-                        int(args.num_steps * 1.0) ] # 40`000            
+
+            if args.auto_scheduler:
+                milestones = [ int(args.num_steps * (0.2 + 0.3*(int(args.split)/100))),
+                            int(args.num_steps * (0.4 + 0.3*(int(args.split)/100))),
+                            int(args.num_steps * (0.6 + 0.3*(int(args.split)/100))),
+                            int(args.num_steps * (0.8 + 0.3*(int(args.split)/100))),
+                            int(args.num_steps * (1.0 + 0.3*(int(args.split)/100))) ]
+            else:
+                milestones = [ int(args.num_steps * 0.5), # 20`000
+                            int(args.num_steps * 0.75), # 30`000
+                            int(args.num_steps * 0.90), # 36`000
+                            int(args.num_steps * 0.95), # 38`000
+                            int(args.num_steps * 1.0) ] # 40`000
+
+                # milestones = [ int(args.num_steps * 0.2), # 8`000
+                #             int(args.num_steps * 0.4), # 16`000
+                #             int(args.num_steps * 0.6), # 24`000
+                #             int(args.num_steps * 0.8), # 32`000
+                #             int(args.num_steps * 1.0) ] # 40`000
 
             scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones, gamma=0.1)
 
         else:
             optimizer = torch.optim.SGD([
                         {'params': model.parameters()},
-                        {'params': classifier.parameters(), 'lr': args.learning_rate * lr_ratio}, ], 
+                        {'params': classifier.parameters(), 'lr': args.learning_rate * args.lr_ratio}, ], 
                         lr= args.learning_rate, 
                         momentum=0.9, 
                         weight_decay=args.weight_decay, 
@@ -540,7 +568,12 @@ def train(args, model, classifier=None, num_classes=None):
             #print(step)
             wandb.log({"step": step})
 
-            batch = tuple(t.to(args.device) for t in batch)
+            if (args.aug_crop is not None) or (args.aug_vanilla is not None): #(args.aug_basic or args.aug_scalemix or args.aug_multicrop or args.aug_asymmAugs):
+                batch = tuple(t for t in batch)
+                #batch = tuple(t.to(args.device) for t in batch)
+            else:
+                batch = tuple(t.to(args.device) for t in batch)
+
             # x, y = batch
             # loss, logits = model(x, y)
             # #loss = loss.mean() # for contrastive learning
@@ -561,13 +594,155 @@ def train(args, model, classifier=None, num_classes=None):
             else:
                 if args.aug_type == "double_crop":
                     x, x_crop, x_crop2, y = batch
+
+                    if args.aug_crop is not None:
+                        x = x.to(args.device).cuda()
+
+                        if args.aug_crop == "aug_basic":
+                            # print("______", type(x))
+                            # print(x.size())
+                            # x = x.to(args.device).cuda()
+
+                            x_crop = x_crop[0].to(args.device) #.cuda()
+                            
+                            '''target
+                            x_crop2 = x_crop2[0].to(args.device) #.cuda()
+                            '''
+                            x_crop2 = x_crop2.to(args.device).cuda()
+                 
+                        elif args.aug_crop == "aug_multicrop":
+                            # ind = random.randrange(4) # pick 1 random crop
+                            # x = x[ind].to(args.device) #.cuda()
+
+                            ind = random.randrange(4) # pick 1 random crop
+                            x_crop = x_crop[ind].to(args.device) #.cuda()
+
+                            '''target
+                            ind = random.randrange(4) # pick 1 random crop
+                            x_crop2 = x_crop2[ind].to(args.device) #.cuda()
+                            '''
+                            x_crop2 = x_crop2.to(args.device).cuda()
+
+                        elif args.aug_crop == "aug_asymmAugs":
+                            #ind = random.randrange(2) # pick 1 random crop
+                            # x = x[ind].to(args.device) #.cuda()
+                            #x = x[0].to(args.device) #.cuda() # stronger augs
+                            #x = x[1].to(args.device) #.cuda() # weaker augs
+                            
+                            # ind = random.randrange(2) # pick 1 random crop
+                            # x_crop = x_crop[ind].to(args.device) #.cuda()
+                            #x_crop = x_crop[0].to(args.device) #.cuda() # stronger augs
+                            x_crop = x_crop[1].to(args.device) #.cuda() # weaker augs
+
+                            '''target
+                            ind = random.randrange(2) # pick 1 random crop
+                            x_crop2 = x_crop2[ind].to(args.device) #.cuda()
+                            #x_crop2 = x_crop2[0].to(args.device) #.cuda() # stronger augs
+                            #x_crop2 = x_crop2[1].to(args.device) #.cuda() # weaker augs
+                            '''
+                            x_crop2 = x_crop2.to(args.device).cuda()
+
+                        elif args.aug_crop == "aug_scalemix":
+                            #x = x[0].to(args.device) #.cuda()
+
+                            x_crop = x_crop[0].to(args.device) #.cuda()
+
+                            '''target
+                            x_crop2 = x_crop2[0].to(args.device) #.cuda()
+                            '''
+                            x_crop2 = x_crop2.to(args.device).cuda()
+
+                        # x = x.to(args.device).cuda()
+                        y = y.to(args.device).cuda()
+
+
                 elif args.aug_type == "single_crop":
                     x, x_crop, y = batch
+
+                    
+                    if args.aug_vanilla is not None:
+                        if args.aug_vanilla == "aug_basic":
+                            x = x[0].to(args.device) #.cuda()
+                            # x = tuple(t.to(args.device) for t in x)
+                            # print(len(x))
+                            # print(x[0].size())
+                            # x = torch.stack(x, dim=0)
+                            # print(x.size())
+                        elif args.aug_vanilla == "aug_multicrop":
+                            ind = random.randrange(4) # pick 1 random crop
+                            x = x[ind].to(args.device) #.cuda()
+                        elif args.aug_vanilla == "aug_asymmAugs":
+                            ind = random.randrange(2) # pick 1 random crop
+                            x = x[ind].to(args.device) #.cuda()
+                            #x = x[0].to(args.device) #.cuda() # stronger augs
+                            #x = x[1].to(args.device) #.cuda() # weaker augs
+                        elif args.aug_vanilla == "aug_scalemix":
+                            x = x[0].to(args.device) #.cuda()
+
+                        y = y.to(args.device).cuda()
+                    
+
+                    if args.aug_crop is not None:
+                        x = x.to(args.device).cuda()
+
+                        if args.aug_crop == "aug_basic":
+                            # print(x.size())
+                            # x = x.to(args.device).cuda()
+                            x_crop = x_crop[0].to(args.device) #.cuda()                     
+                        elif args.aug_crop == "aug_multicrop":
+                            # ind = random.randrange(4) # pick 1 random crop
+                            # x = x[ind].to(args.device) #.cuda()
+                            ind = random.randrange(4) # pick 1 random crop
+                            x_crop = x_crop[ind].to(args.device) #.cuda()
+                        elif args.aug_crop == "aug_asymmAugs":
+                            # #ind = random.randrange(2) # pick 1 random crop
+                            # # x = x[ind].to(args.device) #.cuda()
+                            #x = x[0].to(args.device) #.cuda() # stronger augs
+                            #x = x[1].to(args.device) #.cuda() # weaker augs
+
+                            # ind = random.randrange(2) # pick 1 random crop
+                            # x_crop = x_crop[ind].to(args.device) #.cuda()
+                            #x_crop = x_crop[0].to(args.device) #.cuda() # stronger augs
+                            x_crop = x_crop[1].to(args.device) #.cuda() # weaker augs
+                        elif args.aug_crop == "aug_scalemix":
+                            #x = x[0].to(args.device) #.cuda()
+                            x_crop = x_crop[0].to(args.device) #.cuda()
+
+                        # x = x.to(args.device).cuda()
+                        y = y.to(args.device).cuda()
+
+
                 else:
                     if args.vanilla:
                         x, y = batch
+
+                        if args.aug_vanilla is not None:
+                            if args.aug_vanilla == "aug_basic":
+                                x = x[0].to(args.device) #.cuda()
+                                # x = tuple(t.to(args.device) for t in x)
+                                # print(len(x))
+                                # print(x[0].size())
+                                # x = torch.stack(x, dim=0)
+                                # print(x.size())
+                            elif args.aug_vanilla == "aug_multicrop":
+                                ind = random.randrange(4) # pick 1 random crop
+                                x = x[ind].to(args.device) #.cuda()
+                            elif args.aug_vanilla == "aug_asymmAugs":
+                                ind = random.randrange(2) # pick 1 random crop
+                                x = x[ind].to(args.device) #.cuda()
+                                #x = x[0].to(args.device) #.cuda() # stronger augs
+                                #x = x[1].to(args.device) #.cuda() # weaker augs
+                            elif args.aug_vanilla == "aug_scalemix":
+                                x = x[0].to(args.device) #.cuda()
+                            
+                            #x.to(args.device) #.cuda()
+                            y = y.to(args.device).cuda()
+                        
                     else:
                         raise NotImplementedError()
+                    #print("After", x.size())
+
+
 
             if args.dataset == 'air': # my
                 y = y.view(-1)
@@ -675,6 +850,7 @@ def train(args, model, classifier=None, num_classes=None):
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1).log(), feat_labeled_crop2.softmax(dim=-1), reduction='sum') # from SAM
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1).log(), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
                             
+                            #T: softmax temperature (default: 0.07)
                             ''' Print details:
                             print()
                             print("____Before")
@@ -718,7 +894,7 @@ def train(args, model, classifier=None, num_classes=None):
                             #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
                             #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
                             
-                            ## KL on logits without softmax [unstable negative large values]:
+                            ## KL on logits without softmax [unstable negative large values ?]:
                             #refine_loss = abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
                             #refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits_crop2.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())                            
 
@@ -742,15 +918,16 @@ def train(args, model, classifier=None, num_classes=None):
                             ##ce_loss = loss_fct(logits, y)
 
 
-                            # print(logits.size())
-                            # print(logits.argmax(dim=1).view(-1).size())
+                            # feat KL:
+                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled.softmax(dim=-1), reduction='batchmean') #reduction='sum')
 
-                            # print(logits_crop.size())
-                            # print(logits_crop.view(-1, num_classes).size())
+                            # logits KL:
+                            #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits.softmax(dim=-1), reduction='batchmean') #reduction='sum')
 
-                            # print("----")
+                            # logits CE:
+                            #refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
+                            
 
-                            refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
                             #refine_loss = refine_loss_criterion(logits_crop, logits.argmax(dim=1))  #.view(-1, self.num_classes)) #.long())
 
                         else:
@@ -788,7 +965,7 @@ def train(args, model, classifier=None, num_classes=None):
                         # print(num_classes)
                         # print(y.size())
 
-                        ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
+                        ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1)) #.cuda())
                         loss = ce_loss
 
             # transFG:
@@ -875,6 +1052,40 @@ def train(args, model, classifier=None, num_classes=None):
     if args.local_rank in [-1, 0]:
         writer.close()
     end_time = time.time()
+
+
+    # Save info into a txt
+    res_dataset = "Dataset: " +  str(args.dataset) + "\n"
+    res_split = "Split: " +  str(args.split) + "\n"
+    res_name = "Name: " +  str(args.name) + "\n"
+    res_steps = "Steps: " + str(global_step) + "\n"
+    res_bestAcc = "Best valid accuracy: " + str(round(best_acc, 5)) + "\n"
+    res_bestStep = "Best valid accuracy in step: " + str(best_step) + "\n"
+    res_time = "Total training time, hrs: " + str(round(((end_time - start_time) / 3600), 5)) + "\n"
+    res_trainAcc = "Train accuracy: " + str(np.round(train_accuracy, 5)) + "\n"
+    res_args = "Training parameters: " + str(args) + "\n"
+    res_newLine = str("\n")
+
+    if not os.path.exists("./results/"): 
+        os.makedirs("./results/") 
+
+    # f = open("./models/statistics.txt", "a")
+    with open("./results/" + str(args.dataset) + str(args.split) + "_vanilla" + str(args.vanilla) + ".txt", "a") as f:
+        # text_train = "Epoch: " + str(epoch_print) + ", " + "Train Loss: " + str(loss_print) + ", " + "Train Accuracy: " + str(acc_print) + "\n"
+        f.write(res_newLine)
+        f.write(res_name)
+        #f.write(res_dataset)
+        #f.write(res_split)
+        #f.write(res_steps)
+        f.write(res_bestAcc)
+        f.write(res_bestStep)
+        f.write(res_time)
+        f.write(res_trainAcc)
+        f.write(res_args)
+        #f.write(res_newLine)
+    # f.close()
+
+
     logger.info("Best Accuracy: \t%f" % best_acc)
     logger.info("Total Training Time: \t%f" % ((end_time - start_time) / 3600))
     logger.info("End Training!")
@@ -883,7 +1094,8 @@ def train(args, model, classifier=None, num_classes=None):
 def main():
     parser = argparse.ArgumentParser()
     # Required parameters
-    parser.add_argument("--name", required=True,
+    parser.add_argument("--name", #required=True,
+                        default=None,
                         help="Name of this run. Used for monitoring.")
     parser.add_argument("--dataset", choices=["cifar10", "cifar100", "soyloc", "cotton", "CUB", "dogs", "cars", "air", "CRC"], 
                         default="CUB",
@@ -961,10 +1173,6 @@ def main():
                         default=None,
                         help="Name of the split")
 
-    parser.add_argument("--aug_type", choices=["single_crop", "double_crop"],
-                        default=None,
-                        help="Which architecture to use.")
-
     parser.add_argument('--sam', action='store_true',
                         help="Whether to use the SAM training setup")
     # parser.add_argument('--cls_head', action='store_true',
@@ -976,11 +1184,37 @@ def main():
     parser.add_argument('--preprocess_full_ram', action='store_true',
                         help="Whether to preprocess full dataset and upload it to RAM before training")
     
-    parser.add_argument("--lr_ratio", default=1.0, type=float, # required=True,
+    parser.add_argument('--auto_scheduler', action='store_true',
+                        help="Whether to use the SAM training setup")
+    parser.add_argument("--lr_ratio", default=None, type=float, # required=True,
                         help="Learning rate ratio for the last classification layer.")
     parser.add_argument("--dist_coef", default=0.1, type=float, # required=True,
                         help="Coefficient of the distillation loss contribution.")
-    
+
+    parser.add_argument("--aug_type", choices=["single_crop", "double_crop"],
+                        default=None,
+                        help="Which architecture to use.")
+    parser.add_argument("--aug_vanilla", choices=["aug_basic", "aug_scalemix", "aug_asymmAugs", "aug_multicrop"],
+                        default=None,
+                        help="Whether to use an extra augmentations on vanilla.")
+    parser.add_argument("--aug_crop", choices=["aug_basic", "aug_scalemix", "aug_asymmAugs", "aug_multicrop"],
+                        default=None,
+                        help="Whether to use an extra augmentations on our crop branch.")
+
+    '''
+    parser.add_argument("--aug_basic", action="store_true",
+                        #default=False,
+                        help="enable MultiCrop to take additional views (commonly in lower resolution) from each image per iteration")
+    parser.add_argument("--aug_multicrop", action="store_true",
+                        #default=False,
+                        help="enable MultiCrop to take additional views (commonly in lower resolution) from each image per iteration")
+    parser.add_argument("--aug_scalemix", action="store_true",
+                        #default=False,
+                        help="enable ScaleMix to generate new views of an image by mixing two views of potentially different scales together via binary masking")
+    parser.add_argument("--aug_asymmAugs", action="store_true",
+                        #default=False,
+                        help="enable Asymmetrical Augmentation to form an asymmetric augmentation recipes for source and target")
+    '''
 
     #parser.add_argument('--data_root', type=str, default='./data') # Original
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets') # local
