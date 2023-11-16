@@ -365,7 +365,7 @@ class Dataset_Meta:
                     ##portion1side = torch.distributions.uniform.Uniform(0.5,0.67).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
                     portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
                     ##portion1side = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
-                    #portion1side = torch.distributions.uniform.Uniform(0.2,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    #portion1side = torch.distributions.uniform.Uniform(0.1,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
 
                     #if double_crop:
                     if (self.aug_type == "double_crop"):
@@ -556,7 +556,7 @@ class Dataset_Meta:
                                     #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
                                     transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                    #AutoAugImageNetPolicy(),
+                                    ##AutoAugImageNetPolicy(),
                                     
                                     transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
@@ -629,7 +629,7 @@ class Dataset_Meta:
                                     #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
 
                                     transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                                    #AutoAugImageNetPolicy(),
+                                    ##AutoAugImageNetPolicy(),
                                     
                                     transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
