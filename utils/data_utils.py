@@ -63,6 +63,23 @@ def get_loader(args):
             normalize,
         ]
 
+        # # standard augs from CUB:
+        # augmentation=[
+        #     transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR), # if no saliency
+        #     transforms.RandomCrop((args.img_size, args.img_size)), # if no saliency
+
+        #     transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+        #     #AutoAugImageNetPolicy(),
+            
+        #     transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+        #     transforms.ToTensor(),
+        #     #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+        #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        # ]
+
+
+
 
         """
         # --------------------------------------------------------------------------- #

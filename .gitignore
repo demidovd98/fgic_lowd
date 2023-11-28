@@ -15,7 +15,7 @@ results/
 test/
 wandb/
 logs.txt
-
+runs/
 
 
 # C extensions

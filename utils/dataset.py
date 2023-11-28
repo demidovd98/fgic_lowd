@@ -363,9 +363,9 @@ class Dataset_Meta:
                     #if index < 10: print(portion1side)
                 else:
                     ##portion1side = torch.distributions.uniform.Uniform(0.5,0.67).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
-                    portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    #portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
                     ##portion1side = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
-                    #portion1side = torch.distributions.uniform.Uniform(0.1,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    portion1side = torch.distributions.uniform.Uniform(0.1,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
 
                     #if double_crop:
                     if (self.aug_type == "double_crop"):
