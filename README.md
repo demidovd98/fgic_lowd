@@ -14,29 +14,35 @@ cd '/path/to/cloned/repo/'
 
 bash init.sh 
 
-conda activate ffvt_u2n_p36_timm # old: ffvt_u2n_p36 (messed up torch and timm)
+conda activate ffvt_u2n_p36
 ```
 
 - Dev:
 ```
 cd '/path/to/cloned/repo/'
 
-bash init_dev.sh
+bash init.sh 
 
 source /apps/local/anaconda2023/conda_init.sh
+
+#shared:
 conda activate /l/users/cv-805/envs/ffvt_u2n_p36
+
+#local:
+conda activate ffvt_u2n_p36_timm # old: ffvt_u2n_p36 (messed up torch and timm)
 ```
 
 
 2. Run (example):
+
 Ours:
 ```
-python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 --img_size 224 --resize_size 256 --train_batch_size 24 --eval_batch_size 24 --learning_rate 0.03 --num_steps 40000 --fp16 --eval_every 200 --dataload_workers 4 --split 10 --lr_ratio 10.0 --dist_coef 0.1 --aug_type double_crop
+python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 --img_size 224 --resize_size 256 --train_batch_size 24 --eval_batch_size 24 --learning_rate 0.03 --num_steps 40000 --fp16 --eval_every 200 --split 10 --aug_type double_crop
 ```
 
 Vanilla:
 ```
-python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 --img_size 224 --resize_size 256 --train_batch_size 24 --eval_batch_size 24 --learning_rate 0.03 --num_steps 40000 --fp16 --eval_every 200 --dataload_workers 4 --split 10 --lr_ratio 10.0 --vanilla
+python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 --img_size 224 --resize_size 256 --train_batch_size 24 --eval_batch_size 24 --learning_rate 0.03 --num_steps 40000 --fp16 --eval_every 200 --split 10 --lr_ratio 1.0 --vanilla
 ```
 
 
