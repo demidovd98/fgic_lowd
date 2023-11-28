@@ -8,7 +8,6 @@
 
 1. Initialise the code space:
 
-- Public:
 ```
 cd '/path/to/cloned/repo/'
 
@@ -16,22 +15,6 @@ bash init.sh
 
 conda activate ffvt_u2n_p36
 ```
-
-- Dev:
-```
-cd '/path/to/cloned/repo/'
-
-bash init.sh 
-
-source /apps/local/anaconda2023/conda_init.sh
-
-#shared:
-conda activate /l/users/cv-805/envs/ffvt_u2n_p36
-
-#local:
-conda activate ffvt_u2n_p36_timm # old: ffvt_u2n_p36 (messed up torch and timm)
-```
-
 
 2. Run (example):
 
@@ -81,15 +64,29 @@ conda create --prefix ./name --clone name
 ```
 
 
+### Dev:
+
+```
+bash init.sh 
+
+module load cuda-10.2 # no need anymore
+nvcc --version # no need anymore
+```
+
 #### Use local environment:
 ```
 cd '/l/users/20020067/Activities/FGIC/low_data/Combined/Refine/fgic_lowd'
 
-module load cuda-10.2
-nvcc --version
+source /apps/local/anaconda2023/conda_init.sh
+conda activate ffvt_u2n_p36_timm # old: ffvt_u2n_p36 (messed up torch and timm)
+```
+
+#### Use shared environment:
+```
+cd '/path/to/cloned/repo/'
 
 source /apps/local/anaconda2023/conda_init.sh
-conda activate ffvt_u2n_p36
+conda activate /l/users/cv-805/envs/ffvt_u2n_p36
 ```
 
 #### Misc:
