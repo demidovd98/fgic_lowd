@@ -6,7 +6,8 @@ __pycache__/
 
 # My:
 #_extra/
-_extra/U2Net/saved_models/
+_extra/U2Net/
+#_extra/U2Net/saved_models/
 checkpoint/
 logs/
 models/pre_trained/
