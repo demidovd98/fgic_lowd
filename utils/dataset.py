@@ -504,24 +504,24 @@ class Dataset_Meta:
                     img_crop2 = Image.fromarray(img_crop2, mode='RGB')
     
 
-            if index < 10:
-                # # import time
-                from torchvision.utils import save_image
-                img_tem = transforms.ToTensor()(img)
-                img_name = ("test/img_bef_" + str(index) + ".png")
-                save_image(img_tem, img_name)
-
-                #if rand_crop_im_mask:
-                if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
-                    img_tem_crop = transforms.ToTensor()(img_crop)
-                    img_name_crop = ("test/img_bef_" + str(index) + "_crop1.png")
-                    save_image(img_tem_crop, img_name_crop)
-                    
-                    #if double_crop:
-                    if (self.aug_type == "double_crop"):
-                        img_tem_crop2 = transforms.ToTensor()(img_crop2)
-                        img_name_crop2 = ("test/img_bef_" + str(index) + "_crop2.png")
-                        save_image(img_tem_crop2, img_name_crop2)
+#            if index < 10:
+ #               # # import time
+  #              from torchvision.utils import save_image
+   #             img_tem = transforms.ToTensor()(img)
+    #            img_name = ("test/img_bef_" + str(index) + ".png")
+     #           save_image(img_tem, img_name)
+#
+ #               #if rand_crop_im_mask:
+  #              if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+   #                 img_tem_crop = transforms.ToTensor()(img_crop)
+    #                img_name_crop = ("test/img_bef_" + str(index) + "_crop1.png")
+     #               save_image(img_tem_crop, img_name_crop)
+      #              
+       #             #if double_crop:
+        #            if (self.aug_type == "double_crop"):
+         #               img_tem_crop2 = transforms.ToTensor()(img_crop2)
+          #              img_name_crop2 = ("test/img_bef_" + str(index) + "_crop2.png")
+           #             save_image(img_tem_crop2, img_name_crop2)
 
 
             flip_mask_as_image = False #True # if False - turn on RandomHorizontalFlip in data_utils !!!
@@ -775,22 +775,22 @@ class Dataset_Meta:
 
             # My:
             # #import time
-            if index < 10:
-                from torchvision.utils import save_image
-                #print(img.shape)
+        #    if index < 10:
+         #       from torchvision.utils import save_image
+         #      #print(img.shape)
                 #print("next img")
-                img_name = ("test/img_aft_" + str(index) + ".png")
-                save_image( img, img_name)
+         #       img_name = ("test/img_aft_" + str(index) + ".png")
+          #      save_image( img, img_name)
 
                 #if rand_crop_im_mask:
-                if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
-                    img_name_crop = ("test/img_aft_" + str(index) + "_crop1.png")
-                    save_image( img_crop, img_name_crop)
+           #     if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+             #       img_name_crop = ("test/img_aft_" + str(index) + "_crop1.png")
+            #        save_image( img_crop, img_name_crop)
                     
                     #if double_crop:
-                    if (self.aug_type == "double_crop"):                        
-                        img_name_crop2 = ("test/img_aft_" + str(index) + "_crop2.png")
-                        save_image( img_crop2, img_name_crop2)
+              #      if (self.aug_type == "double_crop"):                        
+                #        img_name_crop2 = ("test/img_aft_" + str(index) + "_crop2.png")
+               #         save_image( img_crop2, img_name_crop2)
 
 
 
