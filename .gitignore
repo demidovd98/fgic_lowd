@@ -18,6 +18,7 @@ wandb/
 logs.txt
 runs/
 #_extra/U2Net/saved_models/
+data/
 
 
 # C extensions

@@ -1875,6 +1875,7 @@ class VisionTransformer(nn.Module):
     def forward(self, x, x_crop=None, labels=None, mask=None, mask_crop=None):
 
         x, attn_weights = self.transformer(x, mask)
+        feats = x[:, 0]
         logits = self.head(x[:, 0])
 
 
@@ -1960,7 +1961,8 @@ class VisionTransformer(nn.Module):
                 return loss, logits
 
         else:
-            return logits, attn_weights
+            #return logits, attn_weights
+            return logits, feats
 
     def load_from(self, weights):
         with torch.no_grad():
