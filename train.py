@@ -30,9 +30,13 @@ from utils.dist_util import get_world_size
 
 
 ### My:
+from models import models_adapted
+
 import torch.nn.functional as F
 from torchvision import models
+#torchvision.models.vision_transformer.VisionTransformer
 #import timm
+
 
 from utils.utils import *
 
@@ -158,6 +162,7 @@ def setup(args):
                 print(f"[INFO] A pre-trained ECCV {args.model_name} model is used")
 
             else:
+
                 '''
                 #model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True) 
 
@@ -169,24 +174,100 @@ def setup(args):
                 #model = models.resnet152(pretrained=True) #, num_classes=200)
                 '''
 
-                #exec(f"model = models.{args.model_name}(pretrained=True)")
-                model = eval(f"models.{args.model_name}(pretrained=True)")
-
-                #print(model)
-
-                model.fc = torch.nn.Linear(in_features=model.fc.in_features, out_features=num_classes, bias=True)
+                ##exec(f"model = models.{args.model_name}(pretrained=True)")
+                #model = eval(f"models.{args.model_name}(pretrained=True, num_classes=num_classes)")
                 
-                #model.fc.apply(init_weights) #?
-                model.fc.weight.data.normal_(0, 0.01)
-                model.fc.bias.data.fill_(0.0)
+                #model = eval(f"models.{args.model_name}(pretrained=True)") # original from torch
+
+                model = models_adapted.resnet50(pretrained=True) # my local
+
+                print(model)
+                
+                ssl = False
+                if (ssl):
+                    model = torch.hub.load('facebookresearch/swav:main', 'resnet50') # swav
+                    # rn50w2 = torch.hub.load('facebookresearch/swav:main', 'resnet50w2')
+                    # rn50w4 = torch.hub.load('facebookresearch/swav:main', 'resnet50w4')
+                    # rn50w5 = torch.hub.load('facebookresearch/swav:main', 'resnet50w5')
+                    #model = torch.hub.load('facebookresearch/barlowtwins:main', 'resnet50')
+
+                    '''
+                    model = eval(f"models.{args.model_name}(pretrained=False)") # for SSLs
+                    #url = 'https://dl.fbaipublicfiles.com/barlowtwins/ep1000_bs2048_lrw0.2_lrb0.0048_lambd0.0051/resnet50.pth' # twins (too old pytorch, doesnt load)
+                    #url = 'https://dl.fbaipublicfiles.com/moco/moco_checkpoints/moco_v2_800ep/moco_v2_800ep_pretrain.pth.tar' # moco
+                    #url = 'https://github.com/Spijkervet/SimCLR/releases/download/1.2/checkpoint_100.tar' # simclr converted to pytorch
+                    # url = 'https://dl.fbaipublicfiles.com/barlowtwins/ljng/resnet50.pth' # twins
+                    # url = 'https://dl.fbaipublicfiles.com/barlowtwins/ljng/checkpoint.pth' # twins
+                    state_dict = torch.hub.load_state_dict_from_url(url, map_location='cpu')
+                    model.load_state_dict(state_dict, strict=False)
+                    
+                    # model.load_from("checkpoint/checkpoint_100.tar")
+                    # model.load_state_dict(torch.load("checkpoint/moco_v2_800ep_pretrain.pth.tar", map_location=args.device.type))
+                    '''                
+
+                if (args.model_name[0:6] == "resnet") or (args.model_name == "googlenet") or (args.model_name == "inception_v3") or (args.model_name == "wide_resnet50_2") :
+                    
+                    # # use custom pre-trained weights ?
+                    # if args.pretrained_dir != "":
+                    #     print(f"[WARNING] A non-stock pre-trained {args.model_name} model is used")
+
+                    #     #model.load_from(args.pretrained_dir)
+                    #     #model.load_state_dict(torch.load(args.pretrained_dir, map_location=torch.device('cpu')))
+
+                    #     #model.load_from(np.load(args.pretrained_dir))
+                    #     model.load_state_dict(torch.load(args.pretrained_dir, map_location=args.device.type))
+
+                    # else:
+                    #     print(f"[INFO] A model {args.model_name} will be trained from scratch")
+                    # #
+                        
+                    
+                    model.fc = torch.nn.Linear(in_features=model.fc.in_features, out_features=num_classes, bias=True)
+                    
+                    # check if this initialisation is actually helpful
+                    #model.fc.apply(init_weights) #?
+                    model.fc.weight.data.normal_(0, 0.01)
+                    model.fc.bias.data.fill_(0.0)
+                elif (args.model_name == "densenet169"):
+                    model.classifier = torch.nn.Linear(in_features=model.classifier.in_features, out_features=num_classes, bias=True)
+                    model.classifier.weight.data.normal_(0, 0.01)
+                    model.classifier.bias.data.fill_(0.0)
+                elif (args.model_name == "vgg16"):
+                    model.classifier = torch.nn.Sequential(
+                        torch.nn.Linear(512 * 7 * 7, 4096),
+                        torch.nn.ReLU(True),
+                        torch.nn.Dropout(),
+                        torch.nn.Linear(4096, 4096),
+                        torch.nn.ReLU(True),
+                        torch.nn.Dropout(),
+                        torch.nn.Linear(4096, num_classes),)
+                elif (args.model_name == "squeezenet1_1"):
+                    final_conv = torch.nn.Conv2d(512, num_classes, kernel_size=1)
+                    model.classifier = torch.nn.Sequential(
+                        torch.nn.Dropout(p=0.5),
+                        final_conv,
+                        torch.nn.ReLU(inplace=True),
+                        torch.nn.AdaptiveAvgPool2d((1, 1)))
+                else:
+                    raise Exception(f"[ERROR] Undefined CNN model {args.model_name}") 
+
 
                 print(f"[INFO] A pre-trained {args.model_name} model is used")
 
         elif args.model_type == "vit":
+            
+            # My (from FFVT):
             model = VisionTransformer(config, args.img_size, zero_head=True, num_classes=num_classes, vis=True, smoothing_value=args.smoothing_value, dataset=args.dataset)
             
+            # Original (needs newer Pytorch version):
+            #model = models.vision_transformer.VisionTransformer(config, args.img_size, zero_head=True, num_classes=num_classes, vis=True, smoothing_value=args.smoothing_value, dataset=args.dataset)
+
             if args.pretrained_dir != "":
                 print(f"[INFO] A pre-trained {args.model_name} model is used")
+
+                #model.load_from(args.pretrained_dir)
+                #model.load_state_dict(torch.load(args.pretrained_dir, map_location=torch.device('cpu')))
+
                 model.load_from(np.load(args.pretrained_dir))
             else:
                 print(f"[INFO] A model {args.model_name} will be trained from scratch")
@@ -748,9 +829,14 @@ def train(args, model, classifier=None, num_classes=None):
                 y = y.view(-1)
 
             loss_fct = torch.nn.CrossEntropyLoss()
+            
             #refine_loss_criterion = FocalLoss() # F.kl_div()
-            refine_loss_criterion = torch.nn.CrossEntropyLoss()
+            refine_loss_criterion = torch.nn.CrossEntropyLoss() # for logits only, not used for feats
             # for pytroch >= 1.6.0 #kl_loss = F.kl_div(reduction="batchmean", log_target=True)
+            
+            #refine_loss_criterion = torch.nn.L1Loss(reduction='mean') # L1
+            #refine_loss_criterion = torch.nn.MSELoss(reduction='mean') # L2
+
 
             if args.sam:
                 # y_test = model(x)
@@ -829,7 +915,10 @@ def train(args, model, classifier=None, num_classes=None):
 
                     if not args.vanilla:
 
+                        #if args.model_type == "cnn":
                         logits_crop, feat_labeled_crop = model(x_crop)
+                        # elif args.model_type == "vit":
+                        #     logits_crop, feat_labeled_crop = model(x=x_crop)
 
                         ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
 
@@ -881,12 +970,16 @@ def train(args, model, classifier=None, num_classes=None):
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
                             #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
                             
+                            
                             ## (main) KL on features with log_softmax similar to the low data paper [more stable]:
                             refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
 
                             #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1), reduction='batchmean') #, log_target=True) #reduction='sum')
                             #for pytroch >= 1.6.0 #refine_loss = kl_loss(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1)) #, reduction='batchmean', log_target=True) #reduction='sum')
+                            
+                            # L1/L2 loss
+                            #refine_loss = refine_loss_criterion(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1)) #, reduction='mean') #
 
 
                             ### Loss on logits:
@@ -943,6 +1036,7 @@ def train(args, model, classifier=None, num_classes=None):
                             #loss = ce_loss + (0.01 * refine_loss) #0.01
 
                             loss = (0.5 * ce_loss) + (0.5 * refine_loss * args.dist_coef) #0.01 # main
+                            #loss = ce_loss + refine_loss * args.dist_coef #0.01 # main (no mean)
 
                             #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 10.0) #0.01 # main
                             #loss = (0.5 * ce_loss) + (0.5 * refine_loss) #0.01
@@ -1107,12 +1201,21 @@ def main():
     parser.add_argument("--model_name", choices=["ViT-B_16", "ViT-B_32", "ViT-L_16",
                                                  "ViT-L_32", "ViT-H_14", "R50-ViT-B_16",
                                                  "resnet18", "resnet34", "resnet50",
-                                                 "resnet101", "resnet152"],
+                                                 "resnet101", "resnet152",
+                                                 "vgg16",
+                                                 "googlenet",
+                                                 "squeezenet1_1",
+                                                 "inception_v3",
+                                                 "densenet169",
+                                                 "wide_resnet50_2",
+                                                 ],
                         default="resnet50",
                         help="Which specific model to use.")
 
-    #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/ViT-B_16.npz",
-    parser.add_argument("--pretrained_dir", type=str, default="",
+    parser.add_argument("--pretrained_dir", type=str, default="checkpoint/ViT-B_16.npz",
+    #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/imagenet21k_ViT-B_32.npz",           
+    #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/vit_16_224_imagenet1000.pth",
+    #parser.add_argument("--pretrained_dir", type=str, default="",
                         help="Where to search for pretrained ViT models.")
 
     parser.add_argument("--output_dir", default="output", type=str,
@@ -1163,7 +1266,7 @@ def main():
                              "0 (default value): dynamic loss scaling.\n"
                              "Positive power of 2: static loss scaling value.\n")
     
-    parser.add_argument("--dataload_workers", type=int, default=4,
+    parser.add_argument("--dataload_workers", type=int, default=8,
                         help="Number of workers for data pre-processing")
         
     parser.add_argument('--vanilla', action='store_true',
