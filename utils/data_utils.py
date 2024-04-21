@@ -177,25 +177,159 @@ def get_loader(args):
 
 
     if args.dataset == "cifar10":
-        trainset = datasets.CIFAR10(root="./data",
+
+        transform_train_cifar = transforms.Compose([
+            #transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
+            
+            transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR), # if no saliency
+            transforms.RandomCrop((args.img_size, args.img_size)), # if no saliency
+
+            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+            #AutoAugImageNetPolicy(),
+            
+            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+            transforms.ToTensor(),
+            #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2475, 0.2435, 0.2615]),
+        ])
+        transform_test_cifar = transforms.Compose([
+            #transforms.Resize((args.img_size, args.img_size)),
+
+            transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR), # if no saliency
+            transforms.CenterCrop((args.img_size, args.img_size)), # if no saliency
+
+            transforms.ToTensor(),
+            #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2475, 0.2435, 0.2615]),
+        ])
+
+
+        trainset = datasets.CIFAR10(args,
+                                    root="./data",
                                     train=True,
                                     download=True,
-                                    transform=transform_train)
-        testset = datasets.CIFAR10(root="./data",
+                                    transform=transform_train_cifar)
+        testset = datasets.CIFAR10(args,
+                                   root="./data",
                                    train=False,
                                    download=True,
-                                   transform=transform_test) if args.local_rank in [-1, 0] else None
+                                   transform=transform_test_cifar) if args.local_rank in [-1, 0] else None
+
+        if (args.split is not None):
+            if (int(args.split) < 100):
+                print("xxxxxxxxxxxx______xxxxx")
+
+                if args.name == "cifar10_0.1percent":
+                    per_class = (50000 // 10) * float(f"0.00{args.split}")
+                elif args.name == "cifar10_1percent":
+                    per_class = (50000 // 10) * float(f"0.0{args.split}")
+                elif args.name == "cifar10_4k":
+                    per_class = 4000 // 10  # CIFAR-10_4K from aug paper
+                else:
+                    per_class = (50000 // 10) * float(int(args.split) / 100)
+
+
+
+                images, targets = trainset.data, trainset.targets
+
+                permutation_tensor = torch.randperm(50_000)
+                images, targets = images[permutation_tensor], torch.tensor(targets)[permutation_tensor].numpy().tolist()
+                
+                sampled_images, sampled_targets = [], []
+                
+                sampled_count = [0] * 10 #if cifar_type == "cifar10" else [0] * 100
+                
+                for j, i in enumerate(targets):
+                    if sampled_count[i] < per_class:
+                        sampled_images.append( images[j] )
+                        sampled_targets.append( targets[j] )
+                        sampled_count[i] += 1
+                
+                print("Images:", len(sampled_images), "Labels:",  len(sampled_targets))
+                trainset.data = sampled_images
+                trainset.targets = sampled_targets
+                
+                #return data
+
 
 
     elif args.dataset == "cifar100":
-        trainset = datasets.CIFAR100(root="./data",
-                                     train=True,
-                                     download=True,
-                                     transform=transform_train)
-        testset = datasets.CIFAR100(root="./data",
-                                    train=False,
+
+        transform_train_cifar = transforms.Compose([
+            #transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
+            
+            transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR), # if no saliency
+            transforms.RandomCrop((args.img_size, args.img_size)), # if no saliency
+
+            #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+            #AutoAugImageNetPolicy(),
+            
+            transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+            transforms.ToTensor(),
+            #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=[0.5070, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2761]),
+        ])
+        transform_test_cifar = transforms.Compose([
+            #transforms.Resize((args.img_size, args.img_size)),
+
+            transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR), # if no saliency
+            transforms.CenterCrop((args.img_size, args.img_size)), # if no saliency
+
+            transforms.ToTensor(),
+            #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(mean=[0.5070, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2761]),
+        ])
+
+        trainset = datasets.CIFAR100(args,
+                                    root="./data",
+                                    train=True,
                                     download=True,
-                                    transform=transform_test) if args.local_rank in [-1, 0] else None
+                                    transform=transform_train_cifar)
+        testset = datasets.CIFAR100(args,
+                                   root="./data",
+                                   train=False,
+                                   download=True,
+                                   transform=transform_test_cifar) if args.local_rank in [-1, 0] else None
+
+        if (args.split is not None):
+            if (int(args.split) < 100):
+                print("xxxxxxxxxxxx______xxxxx")
+
+                if args.name == "cifar100_0.1percent":
+                    per_class = (50000 // 100) * float(f"0.00{args.split}")
+                elif args.name == "cifar100_1percent":
+                    per_class = (50000 // 100) * float(f"0.0{args.split}")
+                elif args.name == "cifar100_4k":
+                    per_class = 10000 // 100  # CIFAR-100_10k from aug paper
+                else:
+                    per_class = (50000 // 100) * float(int(args.split) / 100)
+
+
+
+                images, targets = trainset.data, trainset.targets
+
+                permutation_tensor = torch.randperm(50_000)
+                images, targets = images[permutation_tensor], torch.tensor(targets)[permutation_tensor].numpy().tolist()
+                
+                sampled_images, sampled_targets = [], []
+                
+                sampled_count = [0] * 100 #if cifar_type == "cifar10" else [0] * 100
+                
+                for j, i in enumerate(targets):
+                    if sampled_count[i] < per_class:
+                        sampled_images.append( images[j] )
+                        sampled_targets.append( targets[j] )
+                        sampled_count[i] += 1
+                
+                print("Images:", len(sampled_images), "Labels:",  len(sampled_targets))
+                trainset.data = sampled_images
+                trainset.targets = sampled_targets
+                
+                #return data
+
+
 
 
     elif args.dataset == 'INat2017':
