@@ -69,6 +69,9 @@ class Dataset_Meta:
         self.aug_crop = args.aug_crop
         self.aug_vanilla = args.aug_vanilla
 
+        self.img_size = args.img_size
+        self.resize_size = args.resize_size
+
         #saliency_check = False #False
         self.saliency = args.saliency
         if self.saliency:
@@ -550,10 +553,11 @@ class Dataset_Meta:
                                     #transforms.RandomCrop((args.img_size, args.img_size)),
                                     
                                     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                    #transforms.Resize((160, 160),Image.BILINEAR), # my for bbox
-                                    #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
-                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    # #transforms.Resize((160, 160),Image.BILINEAR), # my for bbox
+                                    # #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
+                                    # transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    # #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
 
                                     transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
                                     ##AutoAugImageNetPolicy(),
@@ -571,9 +575,10 @@ class Dataset_Meta:
                                     #transforms.RandomCrop((args.img_size, args.img_size)),
                                     
                                     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                    #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox                                
-                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((192, 192),Image.BILINEAR), # my for bbox                                
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
 
                                     #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
                                     AutoAugImageNetPolicy(),
@@ -591,8 +596,9 @@ class Dataset_Meta:
                                     #transforms.RandomCrop((args.img_size, args.img_size)),
                                     
                                     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
 
                                     #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
                                     AutoAugImageNetPolicy(),
@@ -624,9 +630,10 @@ class Dataset_Meta:
                                     #transforms.RandomCrop((args.img_size, args.img_size)),
                                     
                                     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                    #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
-                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox                                
-                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox                                
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
 
                                     transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
                                     ##AutoAugImageNetPolicy(),
@@ -644,8 +651,9 @@ class Dataset_Meta:
                                     #transforms.RandomCrop((args.img_size, args.img_size)),
                                     
                                     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
 
                                     #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
                                     AutoAugImageNetPolicy(),
@@ -663,8 +671,9 @@ class Dataset_Meta:
                                     #transforms.RandomCrop((args.img_size, args.img_size)),
                                     
                                     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                    transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
-                                    #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
 
                                     #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
                                     AutoAugImageNetPolicy(),
