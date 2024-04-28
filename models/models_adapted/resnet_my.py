@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .utils import load_state_dict_from_url
 
 
@@ -125,7 +126,7 @@ class ResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None):
+                 norm_layer=None, **kwargs):
         super(ResNet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -174,6 +175,10 @@ class ResNet(nn.Module):
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
 
+        self.montecarlo_dropout = kwargs["montecarlo_dropout"] 
+        if self.montecarlo_dropout is not None:
+            self.dropout = nn.Dropout(self.montecarlo_dropout)
+
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
         downsample = None
@@ -215,19 +220,32 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
 
-        #x = self.fc(x)
+        if self.montecarlo_dropout:
+            x = self.dropout(x)
+
         y = self.fc(x)
-
-        # print(x.size())
-        # print(y.size())
-
-        #return x
         return y, x 
-    
 
     def forward(self, x):
         return self._forward_impl(x)
 
+    def eval(self):
+        """ Orriden eval function to enable the dropout layers during test-time """
+        super(ResNet, self).eval()
+        if self.montecarlo_dropout:
+            for m in self.modules():
+                if m.__class__.__name__.startswith('Dropout'):
+                    m.train()
+
+    def MCDInference(self, img, T=10, probs=False):
+        predictions = []
+        with torch.no_grad():
+            for i in range(T):
+                preds = self(img)[0]	
+                if probs:
+                    preds = F.softmax(preds, dim=1)
+                predictions.append(preds)
+        return predictions
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     model = ResNet(block, layers, **kwargs)

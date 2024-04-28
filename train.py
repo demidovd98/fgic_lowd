@@ -179,7 +179,7 @@ def setup(args):
                 
                 #model = eval(f"models.{args.model_name}(pretrained=True)") # original from torch
 
-                model = models_adapted.resnet50(pretrained=True) # my local
+                model = models_adapted.resnet50(pretrained=True, progress=True, montecarlo_dropout=args.montecarlo_dropout) # my local
 
                 print(model)
                 
@@ -365,11 +365,9 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
     logger.info("  Num steps = %d", len(test_loader))
     logger.info("  Batch size = %d", args.eval_batch_size)
 
+    model.eval()
     if args.sam:
-        model.eval()
         classifier.eval()
-    else:
-        model.eval()
     
     all_preds, all_label = [], []
     epoch_iterator = tqdm(test_loader,
@@ -394,29 +392,21 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
             y = y.view(-1)
 
         with torch.no_grad():
-            if args.sam:
-                feat_labeled = model(x)[0]
-                logits = classifier(feat_labeled.cuda())[0] #feat_labeled/bp_out_feat
 
+            if args.saliency: ## montecarlo not implemented for seliency 
+                logits = model(x, None, None, mask, None)[0]
+            elif(args.montecarlo_dropout is not None):
+                logits = model.MCDInference(x)
+                #take Expectation overall models
+                logits = torch.stack(logits, dim=0)
+                logits = torch.mean(logits, dim=0)
             else:
-                if args.saliency:
-                    #logits = model(x)[0]
+                logits = model(x)[0]
 
-                    # With mask:
-                    y_temp = None
-                    x_crop_temp = None
-                    mask_crop_temp =None
-
-                    logits = model(x, x_crop_temp, y_temp, mask, mask_crop_temp)[0]
-                    #logits, attn_weights = model(x, y_temp, mask)
-                else:              
-                    logits = model(x)[0]
+            if args.sam:
+                logits = classifier(logits)[0] #feat_labeled/bp_out_feat
 
             eval_loss = loss_fct(logits, y)
-            #eval_loss = loss_fct(logits.view(-1, 200), y.view(-1))
-
-            # transFG:
-            #eval_loss = eval_loss.mean() # for contrastive learning!!!
 
             eval_losses.update(eval_loss.item())
             preds = torch.argmax(logits, dim=-1)
@@ -625,13 +615,10 @@ def train(args, model, classifier=None, num_classes=None):
     global_step, best_acc = 0, 0
 
     while True:
+        
+        model.train(True)
         if args.sam:
-            model.train(True)
             classifier.train(True)
-            #optimizer.zero_grad()
-        else:
-            #model.train()
-            model.train(True)
 
         # for param_group in optimizer.param_groups:
         #     print(param_group)
@@ -1140,6 +1127,7 @@ def train(args, model, classifier=None, num_classes=None):
         logger.info("train accuracy so far: %f" % train_accuracy)
         logger.info("best valid accuracy in step: %f" % best_step)
         losses.reset()
+        ## stopping criteria
         if global_step % t_total == 0:
             break
 
@@ -1332,7 +1320,10 @@ def main():
 
     parser.add_argument('--smoothing_value', type=float, default=0.0,
                         help="Label smoothing value\n")
-    
+
+    parser.add_argument("--montecarlo_dropout", type=float, default=None,
+                        help="Traing Bayesian Montecarlo Dropout model") 
+
     args = parser.parse_args()
     
     #args.data_root = '{}/{}'.format(args.data_root, args.dataset)

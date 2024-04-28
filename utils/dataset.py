@@ -21,7 +21,6 @@ from torchvision.datasets.utils import download_url, list_dir, check_integrity, 
 from torchvision import transforms
 
 import random
-from torchvision.transforms import functional as F
 
 from .autoaugment import AutoAugImageNetPolicy
 
