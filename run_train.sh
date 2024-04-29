@@ -1,0 +1,14 @@
+python -W ignore train.py \
+--dataset CUB \
+--model_type cnn \
+--model_name resnet50 \
+--split 10 \
+--img_size 224 \
+--resize_size 256 \
+--aug_type double_crop \
+--learning_rate 0.03 \
+--eval_every 200 \
+--num_steps 40000 \
+--train_batch_size 24 \
+--eval_batch_size 24 \
+--fp16 \
