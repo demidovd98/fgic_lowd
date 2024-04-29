@@ -3,8 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 # WnB:
 import wandb
-wandb.init(project="fgic_ld", entity="fgic_lowd")
-#
+wandb.init(project="fgic_ld_optimizations", entity="fgic_lowd")
 
 import logging
 import argparse
@@ -354,8 +353,6 @@ def setup(args):
         return args, model, num_classes
 
 
-
-#def valid(args, model, writer, test_loader, global_step):
 def valid(args, model, writer, test_loader, global_step, classifier=None):
 
     # Validation!
@@ -446,12 +443,10 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
 
     writer.add_scalar("test/accuracy", scalar_value=accuracy, global_step=global_step)
     wandb.log({"acc_test": accuracy})
+    wandb.log({"val_loss": eval_losses.avg})
     
     return accuracy
 
-
-
-#def train(args, model):
 def train(args, model, classifier=None, num_classes=None):
     """ Train the model """
     if args.local_rank in [-1, 0]:
@@ -476,10 +471,9 @@ def train(args, model, classifier=None, num_classes=None):
             layer_names = []
             for idx, (name, param) in enumerate(model.named_parameters()):
                 layer_names.append(name)
-                #print(f'{idx}: {name}')
         
-            parameters = []
             # store params & learning rates
+            parameters = []
             for idx, name in enumerate(layer_names):
                 lr = args.learning_rate
                 
@@ -598,7 +592,7 @@ def train(args, model, classifier=None, num_classes=None):
         else:
             scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
 
-
+    scheduler = None
     if args.fp16:
         model, optimizer = amp.initialize(models=model,
                                           optimizers=optimizer,
@@ -624,43 +618,29 @@ def train(args, model, classifier=None, num_classes=None):
     losses = AverageMeter()
     global_step, best_acc = 0, 0
 
+    loss_fct = torch.nn.CrossEntropyLoss()
+    refine_loss_criterion = torch.nn.CrossEntropyLoss() 
     while True:
+        model.train(True)
         if args.sam:
-            model.train(True)
             classifier.train(True)
-            #optimizer.zero_grad()
-        else:
-            #model.train()
-            model.train(True)
-
-        # for param_group in optimizer.param_groups:
-        #     print(param_group)
-        #     print(param_group['lr'])
 
         epoch_iterator = tqdm(train_loader,
                               desc="Training (X / X Steps) (loss=X.X)",
                               bar_format="{l_bar}{r_bar}",
                               dynamic_ncols=True,
                               disable=args.local_rank not in [-1, 0])
-
+                              
         all_preds, all_label = [], []
-
         for step, batch in enumerate(epoch_iterator):
-            #print(step)
             wandb.log({"step": step})
 
-            if (args.aug_crop is not None) or (args.aug_vanilla is not None): #(args.aug_basic or args.aug_scalemix or args.aug_multicrop or args.aug_asymmAugs):
+            if (args.aug_crop is not None) or (args.aug_vanilla is not None): 
                 batch = tuple(t for t in batch)
-                #batch = tuple(t.to(args.device) for t in batch)
             else:
                 batch = tuple(t.to(args.device) for t in batch)
 
-            # x, y = batch
-            # loss, logits = model(x, y)
-            # #loss = loss.mean() # for contrastive learning
-
-            # print(args.aug_type)
-
+            ## Open up the tuple from dataloader
             if args.saliency:
                 # With mask:
                 if args.aug_type == "double_crop":
@@ -675,181 +655,82 @@ def train(args, model, classifier=None, num_classes=None):
             else:
                 if args.aug_type == "double_crop":
                     x, x_crop, x_crop2, y = batch
-
                     if args.aug_crop is not None:
                         x = x.to(args.device).cuda()
-
                         if args.aug_crop == "aug_basic":
-                            # print("______", type(x))
-                            # print(x.size())
-                            # x = x.to(args.device).cuda()
-
                             x_crop = x_crop[0].to(args.device) #.cuda()
-                            
-                            '''target
-                            x_crop2 = x_crop2[0].to(args.device) #.cuda()
-                            '''
                             x_crop2 = x_crop2.to(args.device).cuda()
                  
                         elif args.aug_crop == "aug_multicrop":
-                            # ind = random.randrange(4) # pick 1 random crop
-                            # x = x[ind].to(args.device) #.cuda()
-
                             ind = random.randrange(4) # pick 1 random crop
                             x_crop = x_crop[ind].to(args.device) #.cuda()
-
-                            '''target
-                            ind = random.randrange(4) # pick 1 random crop
-                            x_crop2 = x_crop2[ind].to(args.device) #.cuda()
-                            '''
                             x_crop2 = x_crop2.to(args.device).cuda()
 
                         elif args.aug_crop == "aug_asymmAugs":
-                            #ind = random.randrange(2) # pick 1 random crop
-                            # x = x[ind].to(args.device) #.cuda()
-                            #x = x[0].to(args.device) #.cuda() # stronger augs
-                            #x = x[1].to(args.device) #.cuda() # weaker augs
-                            
-                            # ind = random.randrange(2) # pick 1 random crop
-                            # x_crop = x_crop[ind].to(args.device) #.cuda()
-                            #x_crop = x_crop[0].to(args.device) #.cuda() # stronger augs
                             x_crop = x_crop[1].to(args.device) #.cuda() # weaker augs
-
-                            '''target
-                            ind = random.randrange(2) # pick 1 random crop
-                            x_crop2 = x_crop2[ind].to(args.device) #.cuda()
-                            #x_crop2 = x_crop2[0].to(args.device) #.cuda() # stronger augs
-                            #x_crop2 = x_crop2[1].to(args.device) #.cuda() # weaker augs
-                            '''
                             x_crop2 = x_crop2.to(args.device).cuda()
 
                         elif args.aug_crop == "aug_scalemix":
-                            #x = x[0].to(args.device) #.cuda()
 
-                            x_crop = x_crop[0].to(args.device) #.cuda()
-
-                            '''target
-                            x_crop2 = x_crop2[0].to(args.device) #.cuda()
-                            '''
+                            x_crop = x_crop[0].to(args.device) 
                             x_crop2 = x_crop2.to(args.device).cuda()
-
-                        # x = x.to(args.device).cuda()
                         y = y.to(args.device).cuda()
 
 
                 elif args.aug_type == "single_crop":
                     x, x_crop, y = batch
-
-                    
                     if args.aug_vanilla is not None:
                         if args.aug_vanilla == "aug_basic":
                             x = x[0].to(args.device) #.cuda()
-                            # x = tuple(t.to(args.device) for t in x)
-                            # print(len(x))
-                            # print(x[0].size())
-                            # x = torch.stack(x, dim=0)
-                            # print(x.size())
                         elif args.aug_vanilla == "aug_multicrop":
                             ind = random.randrange(4) # pick 1 random crop
                             x = x[ind].to(args.device) #.cuda()
                         elif args.aug_vanilla == "aug_asymmAugs":
                             ind = random.randrange(2) # pick 1 random crop
                             x = x[ind].to(args.device) #.cuda()
-                            #x = x[0].to(args.device) #.cuda() # stronger augs
-                            #x = x[1].to(args.device) #.cuda() # weaker augs
                         elif args.aug_vanilla == "aug_scalemix":
                             x = x[0].to(args.device) #.cuda()
-
                         y = y.to(args.device).cuda()
                     
 
                     if args.aug_crop is not None:
                         x = x.to(args.device).cuda()
-
                         if args.aug_crop == "aug_basic":
-                            # print(x.size())
-                            # x = x.to(args.device).cuda()
                             x_crop = x_crop[0].to(args.device) #.cuda()                     
                         elif args.aug_crop == "aug_multicrop":
-                            # ind = random.randrange(4) # pick 1 random crop
-                            # x = x[ind].to(args.device) #.cuda()
                             ind = random.randrange(4) # pick 1 random crop
                             x_crop = x_crop[ind].to(args.device) #.cuda()
                         elif args.aug_crop == "aug_asymmAugs":
-                            # #ind = random.randrange(2) # pick 1 random crop
-                            # # x = x[ind].to(args.device) #.cuda()
-                            #x = x[0].to(args.device) #.cuda() # stronger augs
-                            #x = x[1].to(args.device) #.cuda() # weaker augs
-
-                            # ind = random.randrange(2) # pick 1 random crop
-                            # x_crop = x_crop[ind].to(args.device) #.cuda()
-                            #x_crop = x_crop[0].to(args.device) #.cuda() # stronger augs
                             x_crop = x_crop[1].to(args.device) #.cuda() # weaker augs
                         elif args.aug_crop == "aug_scalemix":
-                            #x = x[0].to(args.device) #.cuda()
                             x_crop = x_crop[0].to(args.device) #.cuda()
-
-                        # x = x.to(args.device).cuda()
                         y = y.to(args.device).cuda()
-
 
                 else:
                     if args.vanilla:
                         x, y = batch
-
                         if args.aug_vanilla is not None:
                             if args.aug_vanilla == "aug_basic":
                                 x = x[0].to(args.device) #.cuda()
-                                # x = tuple(t.to(args.device) for t in x)
-                                # print(len(x))
-                                # print(x[0].size())
-                                # x = torch.stack(x, dim=0)
-                                # print(x.size())
+
                             elif args.aug_vanilla == "aug_multicrop":
                                 ind = random.randrange(4) # pick 1 random crop
                                 x = x[ind].to(args.device) #.cuda()
                             elif args.aug_vanilla == "aug_asymmAugs":
                                 ind = random.randrange(2) # pick 1 random crop
                                 x = x[ind].to(args.device) #.cuda()
-                                #x = x[0].to(args.device) #.cuda() # stronger augs
-                                #x = x[1].to(args.device) #.cuda() # weaker augs
                             elif args.aug_vanilla == "aug_scalemix":
                                 x = x[0].to(args.device) #.cuda()
-                            
-                            #x.to(args.device) #.cuda()
                             y = y.to(args.device).cuda()
-                        
                     else:
                         raise NotImplementedError()
-                    #print("After", x.size())
 
-
-
-            if args.dataset == 'air': # my
+            if args.dataset == 'air':
                 y = y.view(-1)
 
-            loss_fct = torch.nn.CrossEntropyLoss()
-            
-            #refine_loss_criterion = FocalLoss() # F.kl_div()
-            refine_loss_criterion = torch.nn.CrossEntropyLoss() # for logits only, not used for feats
-            # for pytroch >= 1.6.0 #kl_loss = F.kl_div(reduction="batchmean", log_target=True)
-            
-            #refine_loss_criterion = torch.nn.L1Loss(reduction='mean') # L1
-            #refine_loss_criterion = torch.nn.MSELoss(reduction='mean') # L2
-
-
             if args.sam:
-                # y_test = model(x)
-                # print(len(y_test))
-                # print(y_test[0].size())
-                # print(y_test[1].size())
-                # print(y_test[2].size())
-
                 feat_labeled = model(x)[0] 
-                #print(feat_labeled.size())
-                
                 logits = classifier(feat_labeled.cuda())[0]  #feat_labeled/bp_out_feat
-
                 if not args.vanilla:
                     feat_labeled_crop = model(x_crop)[0]
                     logits_crop = classifier(feat_labeled_crop.cuda())[0] #feat_labeled/bp_out_feat
@@ -859,31 +740,8 @@ def train(args, model, classifier=None, num_classes=None):
                     if args.aug_type == "double_crop":
                         feat_labeled_crop2 = model(x_crop2)[0]
                         logits_crop2 = classifier(feat_labeled_crop2.cuda())[0] #feat_labeled/bp_out_feat
-
-                        ##refine_loss = refine_loss_criterion(logits_crop.view(-1, 200), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
-                        
-                        #refine_loss = refine_loss_criterion(logits_crop.view(-1, 200), logits_crop2.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
-                        
-                        #refine_loss = 3.0 * abs( F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='batchmean') ) #reduction='sum')
-                        
-                        #refine_loss = abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                        #refine_loss = 0.00001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                        #refine_loss = 0.0001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                        #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
                         refine_loss = 0.00001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-
-                        #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean', log_target=True) )
-                        #refine_loss = 0.0001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') )
-                        #refine_loss = 0.1 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='none') )
-
-                        #refine_loss = 0.1 * abs( F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='sum') ) #reduction='sum')
-                        #refine_loss = 0.1 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') ) #reduction='sum')
-
-                        #refine_loss = 0.1 * abs( F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='mean') ) #reduction='sum')
-                        #refine_loss = 0.1 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='mean') ) #reduction='sum')
-
                     elif args.aug_type == "single_crop":
-                        #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled, reduction='batchmean') ) #reduction='sum')
                         refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
                     else:
                         raise NotImplementedError()
@@ -892,179 +750,42 @@ def train(args, model, classifier=None, num_classes=None):
                         print("[INFO]: Skip Refine Loss")
                         loss = ce_loss
                     else:
-                        loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.1) #0.01
-                        #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.3) # 0.5, 0.3
-
+                        loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.1)
                     if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
-
                 else:
-                    ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
-                    loss = ce_loss
-
-
+                    loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
             else:
-
                 if args.saliency:
-                    #loss, logits = model(x, y)
-                    ##loss = loss.mean() # for contrastive learning
-
                     loss, logits = model(x, x_crop, y, mask, mask_crop)
-
                 else:
                     logits, feat_labeled = model(x)
-
                     if not args.vanilla:
 
-                        #if args.model_type == "cnn":
                         logits_crop, feat_labeled_crop = model(x_crop)
-                        # elif args.model_type == "vit":
-                        #     logits_crop, feat_labeled_crop = model(x=x_crop)
-
                         ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
-
+                        
                         if args.aug_type == "double_crop":
                             logits_crop2, feat_labeled_crop2 = model(x_crop2)
-
-                            ### Loss on features:
-                            ## KL on features without softmax [unstable negative large values]:
-                            #refine_loss = 0.0001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                            #refine_loss = 0.00001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                            #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                            #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') ) #reduction='sum')
-
-                            #refine_loss = 0.00005 * F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') #reduction='sum')
-                            #refine_loss = 0.00005 * F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') #reduction='sum')
-
-                            ## KL on features with (softmax + log separately) from the low data paper [unstable calculations with 0 division]:
-                            #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1).log(), feat_labeled_crop2.softmax(dim=-1), reduction='sum') # from SAM
-                            #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1).log(), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
-                            
-                            #T: softmax temperature (default: 0.07)
-                            ''' Print details:
-                            print()
-                            print("____Before")
-                            print(feat_labeled_crop)
-                            print(feat_labeled_crop.size())
-                            print(feat_labeled_crop2)
-                            print(feat_labeled_crop2.size())
-
-                            feat_labeled_crop_test = feat_labeled_crop.softmax(dim=-1)
-                            feat_labeled_crop_test2 = feat_labeled_crop2.softmax(dim=-1)
-
-                            print()
-                            print("____After")
-                            print(feat_labeled_crop_test)
-                            print(feat_labeled_crop_test2)
-
-                            # print()
-                            # print("____After log")
-                            # print(feat_labeled_crop_test.log())
-
-                            refine_loss = F.kl_div(feat_labeled_crop_test, feat_labeled_crop_test2, reduction='batchmean')
-                            print()
-                            print(refine_loss)
-                            print(refine_loss.item())
-                            '''
-
-                            ## (experimental) KL on features with softmax but no log [originally the input better be in log space (gives negative loss but acc better for some reason)]
-                            #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
-                            #refine_loss = F.kl_div(feat_labeled_crop.softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum')
-                            
-                            
-                            ## (main) KL on features with log_softmax similar to the low data paper [more stable]:
-                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-                            #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
-
-                            #refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1), reduction='batchmean') #, log_target=True) #reduction='sum')
-                            #for pytroch >= 1.6.0 #refine_loss = kl_loss(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.log_softmax(dim=-1)) #, reduction='batchmean', log_target=True) #reduction='sum')
-                            
-                            # L1/L2 loss
-                            #refine_loss = refine_loss_criterion(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1)) #, reduction='mean') #
-
-
-                            ### Loss on logits:
-                            ## KL on logits with log_softmax:
-                            #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='sum') #reduction='sum')
-                            #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-                            
-                            ## KL on logits without softmax [unstable negative large values ?]:
-                            #refine_loss = abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
-                            #refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits_crop2.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())                            
-
-                            
-                            ### Experimental options:
-                            #refine_loss = abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')                            
-                            #refine_loss = refine_loss * (ce_loss/refine_loss)
-
-                            #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop2, feat_labeled_crop, reduction='batchmean') ) #reduction='sum')
-                            #refine_loss = 0.00005 * abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
-
+                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2.softmax(dim=-1), reduction='batchmean')
 
                         elif args.aug_type == "single_crop":
-
-                            #ce_loss = loss_fct(logits_crop.view(-1, self.num_classes), labels.view(-1))
-
-                            ##refine_loss = F.kl_div(logits_crop.softmax(dim=-1).log(), logits.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-                            #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-
-                            #ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
-                            ##ce_loss = loss_fct(logits, y)
-
-
-                            # feat KL:
-                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-
-                            # logits KL:
-                            #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-
-                            # logits CE:
-                            #refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
-                            
-
-                            #refine_loss = refine_loss_criterion(logits_crop, logits.argmax(dim=1))  #.view(-1, self.num_classes)) #.long())
-
+                            refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled.softmax(dim=-1), reduction='batchmean')
                         else:
                             raise NotImplementedError()
-
 
                         if torch.isinf(refine_loss):
                             print("[INFO]: Skip Refine Loss")
                             loss = ce_loss
                         else:
-                            #loss = ce_loss + refine_loss #0.01
-                            #loss = ce_loss + (0.1 * refine_loss) #0.01
-                            #loss = ce_loss + (0.01 * refine_loss) #0.01
+                            loss = (0.5 * ce_loss) +  (0.5 * refine_loss * args.dist_coef) 
 
-                            loss = (0.5 * ce_loss) + (0.5 * refine_loss * args.dist_coef) #0.01 # main
-                            #loss = ce_loss + refine_loss * args.dist_coef #0.01 # main (no mean)
-
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 10.0) #0.01 # main
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss) #0.01
-
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.5) #0.01
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.1) #0.01 # main
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.01) #0.01     
-                                                    
-                            #loss = ce_loss + (refine_loss * 0.1) #0.01
-
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.3) #0.01
-
-                        #loss = criterion(logits, y)
                         if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
+
                         wandb.log({"ce_loss": ce_loss.item()})
                         wandb.log({"dist_loss": refine_loss.item()})
-
+                        wandb.log({"total_loss": loss.item()})
                     else:
-                        # print(logits.size())
-                        # print(num_classes)
-                        # print(y.size())
-
-                        ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1)) #.cuda())
-                        loss = ce_loss
-
-            # transFG:
-            #loss = loss.mean() # for contrastive learning !!!
-            #
+                        loss = loss_fct(logits.view(-1, num_classes), y.view(-1)) 
 
             preds = torch.argmax(logits, dim=-1)
 
@@ -1093,17 +814,21 @@ def train(args, model, classifier=None, num_classes=None):
                     torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
                 else:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+
                 optimizer.step()
-                scheduler.step()
+                if scheduler:
+                    scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
+
                 epoch_iterator.set_description(
                     "Training (%d / %d Steps) (loss=%2.5f)" % (global_step, t_total, losses.val)
                 )
+
                 if args.local_rank in [-1, 0]:
                     writer.add_scalar("train/loss", scalar_value=losses.val, global_step=global_step)
-
-                    writer.add_scalar("train/lr", scalar_value=scheduler.get_lr()[0], global_step=global_step)
+                    if scheduler:
+                        writer.add_scalar("train/lr", scalar_value=scheduler.get_lr()[0], global_step=global_step)
 
                 if global_step % args.eval_every == 0 and args.local_rank in [-1, 0]:
                     if args.sam:
@@ -1136,6 +861,8 @@ def train(args, model, classifier=None, num_classes=None):
 
         writer.add_scalar("train/accuracy", scalar_value=train_accuracy, global_step=global_step)
         wandb.log({"acc_train": train_accuracy})
+        if  scheduler:
+            wandb.log({"lr" : scheduler.get_last_lr()[0]})
 
         logger.info("train accuracy so far: %f" % train_accuracy)
         logger.info("best valid accuracy in step: %f" % best_step)
