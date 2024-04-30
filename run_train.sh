@@ -12,3 +12,4 @@ python -W ignore train.py \
 --train_batch_size 24 \
 --eval_batch_size 24 \
 --fp16 \
+--learning_rate 0.0001 \

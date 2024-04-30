@@ -462,11 +462,7 @@ def train(args, model, classifier=None, num_classes=None):
 
     # Prepare optimizer and scheduler
     if args.model_type == "cnn":
-        #lr_ratio = args.lr_ratio # ? round(100 / args.split) #0.1 #5.0 #10.0 # 1.0, 2.0 # useful for CUB
         lr_ratio_feats = 2.0
-
-        #optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
-
         if not args.sam:
             layer_names = []
             for idx, (name, param) in enumerate(model.named_parameters()):
@@ -481,21 +477,14 @@ def train(args, model, classifier=None, num_classes=None):
                 if (name == "fc.weight") or (name == "fc.bias"):
                     lr = args.learning_rate * args.lr_ratio
                     print(f'{idx}: lr = {lr:.6f}, {name}')
-                # elif (150 <= idx <= 158): # 150 (last block of layer 4), 129 (full layer 4)
-                #     lr = args.learning_rate * lr_ratio_feats
-                #     print(f'{idx}: lr = {lr:.6f}, {name}')
                 else:
                     lr = args.learning_rate
-
                 parameters += [{'params': [p for n, p in model.named_parameters() if ((n == name) and (p.requires_grad))],
                                 'lr':      lr}]
-                #print(f'{idx}: lr = {lr:.6f}, {name}')
             
-            optimizer = torch.optim.SGD(parameters, 
+            optimizer = torch.optim.Adam(parameters, 
                         lr= args.learning_rate, 
-                        momentum=0.9, 
-                        weight_decay=args.weight_decay, 
-                        nesterov=True)
+                        weight_decay=args.weight_decay)
             
             '''
             # optimizer = torch.optim.SGD(model.parameters(), 
@@ -526,11 +515,11 @@ def train(args, model, classifier=None, num_classes=None):
                             int(args.num_steps * (0.8 + 0.3*(int(args.split)/100))),
                             int(args.num_steps * (1.0 + 0.3*(int(args.split)/100))) ]
             else:
-                milestones = [ int(args.num_steps * 0.5), # 20`000
-                            int(args.num_steps * 0.75), # 30`000
-                            int(args.num_steps * 0.90), # 36`000
-                            int(args.num_steps * 0.95), # 38`000
-                            int(args.num_steps * 1.0) ] # 40`000
+                milestones = [int(args.num_steps * 0.1), # 20`000
+                              int(args.num_steps * 0.25), # 30`000
+                              int(args.num_steps * 0.40), # 36`000
+                              int(args.num_steps * 0.95), # 38`000
+                              int(args.num_steps * 1.0) ] # 40`000
 
                 # milestones = [ int(args.num_steps * 0.2), # 8`000
                 #             int(args.num_steps * 0.4), # 16`000
@@ -592,7 +581,6 @@ def train(args, model, classifier=None, num_classes=None):
         else:
             scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
 
-    scheduler = None
     if args.fp16:
         model, optimizer = amp.initialize(models=model,
                                           optimizers=optimizer,
@@ -620,6 +608,8 @@ def train(args, model, classifier=None, num_classes=None):
 
     loss_fct = torch.nn.CrossEntropyLoss()
     refine_loss_criterion = torch.nn.CrossEntropyLoss() 
+
+    ## TRAINING LOOP
     while True:
         model.train(True)
         if args.sam:
