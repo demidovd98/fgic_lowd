@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 from .utils import load_state_dict_from_url
 
 
@@ -229,23 +230,57 @@ class ResNet(nn.Module):
     def forward(self, x):
         return self._forward_impl(x)
 
-    def eval(self):
-        """ Orriden eval function to enable the dropout layers during test-time """
-        super(ResNet, self).eval()
-        if self.montecarlo_dropout:
-            for m in self.modules():
-                if m.__class__.__name__.startswith('Dropout'):
-                    m.train()
+    # def eval(self):
+    #     """ Orriden eval function to enable the dropout layers during test-time """
+    #     super(ResNet, self).eval()
+    #     if self.montecarlo_dropout:
+    #         for m in self.modules():
+    #             if m.__class__.__name__.startswith('Dropout'):
+    #                 m.train()
 
-    def MCDInference(self, img, T=10, probs=False):
+    def MCDInference(self, img, T=10, probs=False, device="cpu"):
         predictions = []
         with torch.no_grad():
             for i in range(T):
-                preds = self(img)[0]	
+                preds = self(img)[0]
                 if probs:
                     preds = F.softmax(preds, dim=1)
                 predictions.append(preds)
         return predictions
+    
+
+    def committe_inference(dataset, committe_size=5, eval_sample_size=None):
+
+        if eval_sample_size is None:
+            eval_sample_size = len(dataset)
+
+        eval_results = {}
+        eval_results["sampled_probabilities"] = []
+        eval_results["sampled_answers"] = []
+
+        self = self.cuda()
+        self.eval()
+        with torch.no_grad():
+            for i in tqdm(range(committe_size)):
+                probs, preds = [], []
+                for i in range(eval_sample_size):
+
+                    img, label = dataset[i]
+                    img = img[None, ...].cuda()
+                    
+                    logits = self(img)[0]
+
+                    preds_i = torch.argmax(logits, dim=-1).squeeze()
+                    probs_i = torch.softmax(logits, dim=-1).squeeze()
+                    probs.append(probs_i.cpu().detach().numpy())
+                    preds.append(preds_i.cpu().detach().numpy())
+
+                eval_results["sampled_probabilities"].append(probs)
+                eval_results["sampled_answers"].append(preds)
+
+        return eval_results
+
+
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     model = ResNet(block, layers, **kwargs)

@@ -1,9 +1,16 @@
 import torch
 import argparse
 import torch.nn.functional as F
+import numpy as np
+import pickle
+import cv2
+
 from models.models_adapted import resnet_my
+from tqdm import tqdm
 from torchvision import transforms 
 from utils.dataset import *
+from utils.utils import convert_dropouts, activate_mc_dropout, rcc_auc, seed_everything
+from utils.utils import  bald_func, probability_variance, sampled_max_prob
 
 
 parser = argparse.ArgumentParser()
@@ -135,24 +142,148 @@ def get_dataset(arg):
     test_dataset = CUB(args=arg, is_train=False, transform=test_transform)
     return test_dataset 
 
-if __name__ == "__main__":
 
-	## change to argument
-	path2checkpoint = "output/CUB10_cnn_resnet50_vanillaFalse_lrRatNone_augTypedouble_crop_augCropNone_distCoef0.1_steps40000_checkpoint.bin"
-	num_classes = 200
-	args.data_root = args.data_root + "/CUB_200_2011/CUB_200_2011/CUB_200_2011"
-
+def get_model(path2checkpoint):
 	model = resnet_my.resnet50(montecarlo_dropout=args.montecarlo_dropout) 
 	model.fc = torch.nn.Linear(in_features=model.fc.in_features, out_features=num_classes, bias=True)
 
 	checkpoint = torch.load(path2checkpoint)
 	model.load_state_dict(checkpoint, strict=True)
+	return model
+
+if __name__ == "__main__":
+
+	## SEED ALL
+	seed = 0
+	seed_everything(seed)
+		
+
+	## CONFIG 
+	path2checkpoint = "output/CUB10_cnn_resnet50_vanillaFalse_lrRatNone_augTypedouble_crop_augCropNone_distCoef0.1_steps40000_checkpoint.bin"
+	args.data_root = args.data_root + "/CUB_200_2011/CUB_200_2011/CUB_200_2011"
+	num_classes = 200
+	committee_size = 30 
+	eval_sample_size = 300 
+
 	dataset = get_dataset(args)
 
-	img, label = next(iter(dataset))
-	img = img[None, ...]
-
+	model = get_model(path2checkpoint)
+	model = model.cuda()
 	model.eval()
-	preds = model.MCDInference(img)
+
+
+	### Simple Inference
+	probabiliets, predictions, eval_labels = [], [], []
+	with torch.no_grad():
+		for i in range(eval_sample_size):
+
+			img, label = dataset[i]
+			img = img[None, ...].cuda()
+			
+			logits = model(img)[0]
+
+			preds_i = torch.argmax(logits, dim=-1).squeeze()
+			probs_i = torch.softmax(logits, dim=-1).squeeze()
+			probabiliets.append(probs_i.cpu().detach().numpy())
+			predictions.append(preds_i.cpu().detach().numpy().item())
+			eval_labels.append(label)
+	eval_labels = np.array(eval_labels)
+	predictions = np.array(predictions)
+
+
+	### MC Inference
+	convert_dropouts(model)
+	activate_mc_dropout(model, activate=True)
+
+	eval_results = {}
+	eval_results["sampled_probabilities"] = []
+	eval_results["sampled_answers"] = []
+
+	with torch.no_grad():
+		for i in tqdm(range(committee_size)):
+			probs, preds = [], []
+			for i in range(eval_sample_size):
+				img, label = dataset[i]
+				img = img[None, ...].cuda()
+				
+				logits = model(img)[0]
+
+				preds_i = torch.argmax(logits, dim=-1).squeeze()
+				probs_i = torch.softmax(logits, dim=-1).squeeze()
+				probs.append(probs_i.cpu().detach().numpy())
+				preds.append(preds_i.cpu().detach().numpy())
+			eval_results["sampled_probabilities"].append(probs)
+			eval_results["sampled_answers"].append(preds)
+
+	smp = sampled_max_prob(np.array(eval_results['sampled_probabilities']).transpose(1, 0, 2))
+	pv = probability_variance(np.array(eval_results['sampled_probabilities']).transpose(1, 0, 2))
+	bald = bald_func(np.array(eval_results['sampled_probabilities']).transpose(1, 0, 2))
+
+	errors = (eval_labels != predictions).astype(int)
+
+	results = {
+		# "SR": [rcc_auc(-sr, errors)],
+		"SMP": [rcc_auc(-smp, errors)],
+		"PV": [rcc_auc(-pv, errors)],
+		"BALD": [rcc_auc(-bald, errors)],
+		# "MD": [rcc_auc(-eval_results["mahalanobis_distance"], errors)],
+		# "HUQ-MD": [rcc_auc(-eval_results["HUQ-MD"], errors)],
+		}
+
+	print(results)
+
+
+	# img_name_list = []
+	# with open(os.path.join(args.data_root, 'image_class_labels.txt')) as file:
+	# 	for line in file:
+	# 		img_name_list.append(line[:-1].split(' ')[-1])
+	
+	# print(img_name_list)
+
+	# model.eval()
+
+	# for i in range(100):
+	# 	img, label = dataset[i]
+	# 	img = img[None, ...]
+	# 	preds = model.MCDInference(img, probs=True, device="cuda")
+	# 	print([np.argmax(i, axis=1).item() for i in preds], "\t\t\tlabel: " , label)
+
+
+	# img = img.squeeze().numpy()
+	# img = np.transpose(img, (1, 2, 0))
+	# plt.imshow(img)
+	# plt.show()
+
+	# stack = torch.stack(preds, dim=1)
+	# mean = torch.mean(stack, dim=1)
+	# std = torch.std(stack, dim=1).squeeze()
+	# pred_label = torch.argmax(mean, dim=1)
+	# pred_std = std[pred_label]
+
+	# print("pred label: ", pred_label.item())
+	# print("pred std: ", pred_std.item())
+
+	# import matplotlib.pyplot as plt
     
-	print([torch.argmax(i, dim=1).item() for i in preds], "label: " , label)
+	# plt.hist(mean.numpy())
+	# plt.show()
+	
+
+	# for i in range(mean.shape[1]):
+	# 	print('label :', i, " std: ", std[i])
+
+
+
+	# MCD_output = {} 
+	# for tup in tqdm(dataset): 
+	# 	img, label = tup 
+	# 	img = img[None, ...]
+	# 	preds = model.MCDInference(img, probs=True, device="cuda")
+	# 	if label in MCD_output:
+	# 		MCD_output[label].append(preds)
+	# 	else:
+	# 		MCD_output[label] = [preds]		
+
+	# with open('filename.pickle', 'wb') as handle:
+	# 	pickle.dump(MCD_output, handle)
+
