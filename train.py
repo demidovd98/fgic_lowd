@@ -25,7 +25,7 @@ from apex.parallel import DistributedDataParallel as DDP
 
 from models.modeling import VisionTransformer, CONFIGS
 from utils.scheduler import WarmupLinearSchedule, WarmupCosineSchedule
-from utils.data_utils import get_loader
+from utils.data_utils import get_loader 
 from utils.dist_util import get_world_size
 
 
@@ -358,8 +358,6 @@ def setup(args):
 #def valid(args, model, writer, test_loader, global_step):
 def valid(args, model, writer, test_loader, global_step, classifier=None):
 
-    # Validation!
-    eval_losses = AverageMeter()
 
     logger.info("***** Running Validation *****")
     logger.info("  Num steps = %d", len(test_loader))
@@ -369,13 +367,18 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
     if args.sam:
         classifier.eval()
     
-    all_preds, all_label = [], []
+    # Validation!
+    eval_losses = AverageMeter()
+    loss_fct = torch.nn.CrossEntropyLoss()
     epoch_iterator = tqdm(test_loader,
                           desc="Validating... (loss=X.X)",
                           bar_format="{l_bar}{r_bar}",
                           dynamic_ncols=True,
                           disable=args.local_rank not in [-1, 0])
-    loss_fct = torch.nn.CrossEntropyLoss()
+
+    metrics = {}
+    uncertanity_buffer = {"smp": [], "pv": [], "bald": [], "all_pred_committee": [], "labels": []}
+    all_preds, all_label = [], []
     for step, batch in enumerate(epoch_iterator):
         ##wandb.log({"step": step})
 
@@ -392,14 +395,40 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
             y = y.view(-1)
 
         with torch.no_grad():
+            if(args.montecarlo_dropout is not None):
+                B = x.shape[0]
+                activate_mc_dropout(model, activate=True) 
+                logits_MC = model.MCDInference(x)
 
-            if args.saliency: ## montecarlo not implemented for seliency 
-                logits = model(x, None, None, mask, None)[0]
-            elif(args.montecarlo_dropout is not None):
-                logits = model.MCDInference(x)
+                ## test accuracy for single model 
+                # print("Simple accuracy: ", simple_accuracy(torch.argmax(logits_MC[0], dim=-1).detach().cpu().numpy(), y.detach().cpu().numpy()))
+
+                logits_MC = torch.stack(logits_MC, dim=0)
+                probs = torch.softmax(logits_MC, dim=-1)
+                probs = probs.detach().cpu().numpy()
+
+                smp = sampled_max_prob(probs.transpose(1, 0, 2))
+                pv = probability_variance(probs.transpose(1, 0, 2))
+                bald = bald_func(probs.transpose(1, 0, 2))
+                smp = smp.reshape(B, -1)
+                pv = pv.reshape(B, -1)
+                bald = bald.reshape(B, -1)
+                uncertanity_buffer["smp"].append(smp)
+                uncertanity_buffer["pv"].append(pv)
+                uncertanity_buffer["bald"].append(bald)
+
                 #take Expectation overall models
-                logits = torch.stack(logits, dim=0)
-                logits = torch.mean(logits, dim=0)
+                logits_committee = torch.mean(logits_MC, dim=0)
+                logits_committee = torch.argmax(logits_committee, dim=-1, keepdim=True)
+
+                uncertanity_buffer["all_pred_committee"].append(logits_committee.detach().cpu().numpy())
+                uncertanity_buffer["labels"].append(y.detach().cpu().numpy()[..., None])
+
+                activate_mc_dropout(model, activate=False) 
+                logits = model(x)[0]
+
+            elif args.saliency: ## montecarlo not implemented for seliency 
+                logits = model(x, None, None, mask, None)[0]
             else:
                 logits = model(x)[0]
 
@@ -407,7 +436,6 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
                 logits = classifier(logits)[0] #feat_labeled/bp_out_feat
 
             eval_loss = loss_fct(logits, y)
-
             eval_losses.update(eval_loss.item())
             preds = torch.argmax(logits, dim=-1)
 
@@ -425,6 +453,22 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
 
     all_preds, all_label = all_preds[0], all_label[0]
     accuracy = simple_accuracy(all_preds, all_label)
+    metrics["Accuracy"] = accuracy
+
+    if args.montecarlo_dropout:
+        uncertanity_buffer["all_pred_committee"] = np.concatenate(uncertanity_buffer["all_pred_committee"], axis=0)
+        uncertanity_buffer["smp"] = np.concatenate(uncertanity_buffer["smp"], axis=0)
+        uncertanity_buffer["pv"] = np.concatenate(uncertanity_buffer["pv"], axis=0)
+        uncertanity_buffer["bald"] = np.concatenate(uncertanity_buffer["bald"], axis=0)
+        uncertanity_buffer["labels"] = np.concatenate(uncertanity_buffer["labels"], axis=0)
+
+        accuracy_committee = simple_accuracy(uncertanity_buffer["all_pred_committee"], uncertanity_buffer["labels"]) 
+        metrics["Accuracy_Committee"] = accuracy_committee
+
+        erros = (all_label != all_preds).astype(int)
+        metrics["BALD"] = rcc_auc(-uncertanity_buffer["bald"], erros)
+        metrics["SMP"] = rcc_auc(-uncertanity_buffer["smp"], erros)
+        metrics["PV"] = rcc_auc(-uncertanity_buffer["pv"], erros)
 
     logger.info("\n")
     logger.info("Validation Results")
@@ -432,14 +476,17 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
     logger.info("Valid Loss: %2.5f" % eval_losses.avg)
     logger.info("Valid Accuracy: %2.5f" % accuracy)
     
-    print("Valid Accuracy:", accuracy)
-
     writer.add_scalar("test/accuracy", scalar_value=accuracy, global_step=global_step)
-    wandb.log({"acc_test": accuracy})
+
+    wandb.log({"acc_test": metrics["Accuracy"]})
+    wandb.log({"acc_committee_test": metrics["Accuracy_Committee"]})
+    wandb.log({"Probaibility_Variance": metrics["PV"]})
+    wandb.log({"Sampled_Max_Probability": metrics["SMP"]})
+    wandb.log({"BALD": metrics["BALD"]})
     
-    return accuracy
+    print("Validations Metrics:", metrics)
 
-
+    return metrics 
 
 #def train(args, model):
 def train(args, model, classifier=None, num_classes=None):
@@ -454,6 +501,11 @@ def train(args, model, classifier=None, num_classes=None):
 
     # Prepare dataset
     train_loader, test_loader = get_loader(args)
+
+    # MC Dropout:
+    if args.montecarlo_dropout:
+        convert_dropouts(model)
+        activate_mc_dropout(model, activate=True, verbose=True)
 
     # Prepare optimizer and scheduler
     if args.model_type == "cnn":
@@ -614,11 +666,14 @@ def train(args, model, classifier=None, num_classes=None):
     losses = AverageMeter()
     global_step, best_acc = 0, 0
 
+    valid(args, model, writer, test_loader, global_step)
     while True:
         
         model.train(True)
         if args.sam:
             classifier.train(True)
+        if args.montecarlo_dropout:
+            activate_mc_dropout(model, activate=True, verbose=True)
 
         # for param_group in optimizer.param_groups:
         #     print(param_group)
@@ -1038,7 +1093,7 @@ def train(args, model, classifier=None, num_classes=None):
 
                         #loss = criterion(logits, y)
                         if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
-                        wandb.log({"ce_loss": ce_loss.item()})
+                        # wandb.log({"ce_loss": ce_loss.item()})
                         wandb.log({"dist_loss": refine_loss.item()})
 
                     else:
@@ -1048,6 +1103,8 @@ def train(args, model, classifier=None, num_classes=None):
 
                         ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1)) #.cuda())
                         loss = ce_loss
+
+                    wandb.log({"ce_loss": ce_loss.item()})
 
             # transFG:
             #loss = loss.mean() # for contrastive learning !!!
@@ -1094,10 +1151,14 @@ def train(args, model, classifier=None, num_classes=None):
 
                 if global_step % args.eval_every == 0 and args.local_rank in [-1, 0]:
                     if args.sam:
-                        accuracy = valid(args, model, writer, test_loader, global_step, classifier)
+                        metrics = valid(args, model, writer, test_loader, global_step, classifier)
                     else:
-                        accuracy = valid(args, model, writer, test_loader, global_step)
-                        
+                        metrics = valid(args, model, writer, test_loader, global_step)
+
+                    if args.montecarlo_dropout:
+                        activate_mc_dropout(model, activate=True, verbose=True)
+
+                    accuracy = metrics["Accuracy"] 
                     if best_acc < accuracy:
                         save_model(args, model, logger)
                         best_acc = accuracy
@@ -1254,7 +1315,7 @@ def main():
                              "0 (default value): dynamic loss scaling.\n"
                              "Positive power of 2: static loss scaling value.\n")
     
-    parser.add_argument("--dataload_workers", type=int, default=8,
+    parser.add_argument("--dataload_workers", type=int, default=5,
                         help="Number of workers for data pre-processing")
         
     parser.add_argument('--vanilla', action='store_true',

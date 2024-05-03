@@ -10,6 +10,6 @@ python -W ignore train.py \
 --num_steps 40000 \
 --fp16 \
 --eval_every 200 \
---split 10 \
+--split 30 \
 --aug_type double_crop \
 --montecarlo_dropout 0.1

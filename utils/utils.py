@@ -44,6 +44,7 @@ class AverageMeter(object):
 
 
 def simple_accuracy(preds, labels):
+    assert preds.shape == labels.shape, "preds, labels shapes are not equal"
     return (preds == labels).mean()
 
 
