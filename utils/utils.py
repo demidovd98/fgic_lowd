@@ -4,7 +4,8 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-
+#import time
+from datetime import datetime
 
 class FocalLoss(torch.nn.Module):
     def __init__(self, alpha=1, gamma=2, reduce=True):
@@ -49,7 +50,30 @@ def simple_accuracy(preds, labels):
 
 def save_model(args, model, logger):
     model_to_save = model.module if hasattr(model, 'module') else model
-    model_checkpoint = os.path.join(args.output_dir, "%s_checkpoint.bin" % args.name)
+    #model_checkpoint = os.path.join(args.output_dir, "%s_checkpoint.bin" % args.name) # owerrites existing checkpoints!
+
+    if args.checkpoint_name == "": # first initialisation
+        #args.checkpoint_name = ( "%s_checkpoint.bin" % args.name )
+        args.checkpoint_name = ( "%s_checkpoint_%s.bin" % (args.name, datetime.now()) )  # date append
+
+        model_checkpoint = os.path.join(args.output_dir, args.checkpoint_name)
+
+        # # if os.path.isfile(model_checkpoint): # basic (unnecessary now)
+        # #     model_checkpoint = os.path.join(args.output_dir, "%s_new_checkpoint.bin" % args.name)
+
+        # while(os.path.isfile(model_checkpoint)): # windows-like (unnecessary now)
+        #     iterator = 1
+        #     args.checkpoint_name = ( "%s_checkpoint_%s.bin" % (args.name, iterator) )
+        #     model_checkpoint = os.path.join(args.output_dir, args.checkpoint_name)
+        #     iterator += 1
+
+        if os.path.isfile(model_checkpoint): # date append (unnecessary now)
+            args.checkpoint_name = ( "%s_checkpoint_%s.bin" % (args.name, datetime.now()) )
+            model_checkpoint = os.path.join(args.output_dir, args.checkpoint_name)
+    else:
+        model_checkpoint = os.path.join(args.output_dir, args.checkpoint_name)
+
+
     torch.save(model_to_save.state_dict(), model_checkpoint)
     logger.info("Saved model checkpoint to [DIR: %s]", args.output_dir)
 
