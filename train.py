@@ -95,6 +95,7 @@ def setup(args):
 
     args.data_root = '{}/{}'.format(args.data_root, dataset_path)
 
+    train_loader, test_loader = get_loader(args)
 
 
     if args.split is not None:
@@ -103,8 +104,8 @@ def setup(args):
         if args.lr_ratio is None:
             if int(args.split) < 100: # round to the neasrest value with step 0.5
                 args.lr_ratio = round( (100.0 / int(args.split)) * 2 ) / 2
-            else: # 0.1 for 100% instead of 1.0
-                args.lr_ratio = 0.1
+            else: # 0.1 for 100% instead of 1.0 (do we need it?)
+                args.lr_ratio = 1.0 #0.1
     else:
         print(f"[INFO] A standard training with 100% of labels")
 
@@ -177,33 +178,36 @@ def setup(args):
                 ##exec(f"model = models.{args.model_name}(pretrained=True)")
                 #model = eval(f"models.{args.model_name}(pretrained=True, num_classes=num_classes)")
                 
-                #model = eval(f"models.{args.model_name}(pretrained=True)") # original from torch
-
-                model = models_adapted.resnet50(pretrained=True) # my local
-
-                print(model)
+                if args.vanilla:
+                    model = eval(f"models.{args.model_name}(pretrained=True)") # original directly from torch
                 
-                ssl = False
-                if (ssl):
-                    model = torch.hub.load('facebookresearch/swav:main', 'resnet50') # swav
-                    # rn50w2 = torch.hub.load('facebookresearch/swav:main', 'resnet50w2')
-                    # rn50w4 = torch.hub.load('facebookresearch/swav:main', 'resnet50w4')
-                    # rn50w5 = torch.hub.load('facebookresearch/swav:main', 'resnet50w5')
-                    #model = torch.hub.load('facebookresearch/barlowtwins:main', 'resnet50')
+                else: # our model
+                    model = eval(f"models_adapted.{args.model_name}(pretrained=True)") # locally copied from torch
+                    #model = models_adapted.resnet50(pretrained=True) # my local
 
-                    '''
-                    model = eval(f"models.{args.model_name}(pretrained=False)") # for SSLs
-                    #url = 'https://dl.fbaipublicfiles.com/barlowtwins/ep1000_bs2048_lrw0.2_lrb0.0048_lambd0.0051/resnet50.pth' # twins (too old pytorch, doesnt load)
-                    #url = 'https://dl.fbaipublicfiles.com/moco/moco_checkpoints/moco_v2_800ep/moco_v2_800ep_pretrain.pth.tar' # moco
-                    #url = 'https://github.com/Spijkervet/SimCLR/releases/download/1.2/checkpoint_100.tar' # simclr converted to pytorch
-                    # url = 'https://dl.fbaipublicfiles.com/barlowtwins/ljng/resnet50.pth' # twins
-                    # url = 'https://dl.fbaipublicfiles.com/barlowtwins/ljng/checkpoint.pth' # twins
-                    state_dict = torch.hub.load_state_dict_from_url(url, map_location='cpu')
-                    model.load_state_dict(state_dict, strict=False)
+                    #print(model)
                     
-                    # model.load_from("checkpoint/checkpoint_100.tar")
-                    # model.load_state_dict(torch.load("checkpoint/moco_v2_800ep_pretrain.pth.tar", map_location=args.device.type))
-                    '''                
+                    ssl = False
+                    if (ssl):
+                        model = torch.hub.load('facebookresearch/swav:main', 'resnet50') # swav
+                        # rn50w2 = torch.hub.load('facebookresearch/swav:main', 'resnet50w2')
+                        # rn50w4 = torch.hub.load('facebookresearch/swav:main', 'resnet50w4')
+                        # rn50w5 = torch.hub.load('facebookresearch/swav:main', 'resnet50w5')
+                        #model = torch.hub.load('facebookresearch/barlowtwins:main', 'resnet50')
+
+                        '''
+                        model = eval(f"models.{args.model_name}(pretrained=False)") # for SSLs
+                        #url = 'https://dl.fbaipublicfiles.com/barlowtwins/ep1000_bs2048_lrw0.2_lrb0.0048_lambd0.0051/resnet50.pth' # twins (too old pytorch, doesnt load)
+                        #url = 'https://dl.fbaipublicfiles.com/moco/moco_checkpoints/moco_v2_800ep/moco_v2_800ep_pretrain.pth.tar' # moco
+                        #url = 'https://github.com/Spijkervet/SimCLR/releases/download/1.2/checkpoint_100.tar' # simclr converted to pytorch
+                        # url = 'https://dl.fbaipublicfiles.com/barlowtwins/ljng/resnet50.pth' # twins
+                        # url = 'https://dl.fbaipublicfiles.com/barlowtwins/ljng/checkpoint.pth' # twins
+                        state_dict = torch.hub.load_state_dict_from_url(url, map_location='cpu')
+                        model.load_state_dict(state_dict, strict=False)
+                        
+                        # model.load_from("checkpoint/checkpoint_100.tar")
+                        # model.load_state_dict(torch.load("checkpoint/moco_v2_800ep_pretrain.pth.tar", map_location=args.device.type))
+                        '''                
 
                 if (args.model_name[0:6] == "resnet") or (args.model_name == "googlenet") or (args.model_name == "inception_v3") or (args.model_name == "wide_resnet50_2") :
                     
@@ -252,6 +256,16 @@ def setup(args):
                     raise Exception(f"[ERROR] Undefined CNN model {args.model_name}") 
 
 
+                if args.test_only:
+                    if args.checkpoint_dir != "":
+                        # vanilla CUB_10:   "checkpoint/ours/CUB10_cnn_resnet50_vanillaTrue_lrRat1_0_steps40000_checkpoint.bin" 
+                        # ours CUB_10:      "checkpoint/ours/CUB10_cnn_resnet50_vanillaFalse_lrRatNone_augTypedouble_crop_augCropNone.bin"
+
+                        model.load_state_dict(torch.load(args.checkpoint_dir))
+                        #model.load_state_dict(torch.load(args.checkpoint_dir, map_location=torch.device('cpu')), strict=True)
+                        print(f"[INFO] A checkpoint {args.checkpoint_dir} is used")
+
+
                 print(f"[INFO] A pre-trained {args.model_name} model is used")
 
         elif args.model_type == "vit":
@@ -273,7 +287,6 @@ def setup(args):
                 print(f"[INFO] A model {args.model_name} will be trained from scratch")
         else:
             raise Exception(f"[ERROR] Undefined model type {args.model_type}") 
-
 
     else:
         # checkpoint = torch.hub.load_state_dict_from_url(
@@ -326,6 +339,12 @@ def setup(args):
         #print(model)
 
 
+    # log writer
+    if args.local_rank in [-1, 0]:
+        os.makedirs(args.output_dir, exist_ok=True)
+        writer = SummaryWriter(log_dir=os.path.join("logs", args.name))
+
+
     if args.sam:
         model.to(args.device)
         classifier.to(args.device)
@@ -341,7 +360,7 @@ def setup(args):
 
         print(model)
 
-        save_model(args, model, logger)
+        #save_model(args, model, logger) # create the original file (unnecessary)
 
         if args.model_type == "vit": logger.info("{}".format(config))
         logger.info("[INFO] Training parameters %s", args)
@@ -349,9 +368,9 @@ def setup(args):
         print(num_params)
 
     if args.sam:
-        return args, model, classifier, num_classes
+        return args, model, classifier, num_classes, train_loader, test_loader, writer
     else:
-        return args, model, num_classes
+        return args, model, num_classes, train_loader, test_loader, writer
 
 
 
@@ -409,8 +428,15 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
 
                     logits = model(x, x_crop_temp, y_temp, mask, mask_crop_temp)[0]
                     #logits, attn_weights = model(x, y_temp, mask)
-                else:              
-                    logits = model(x)[0]
+                else:
+                    if args.vanilla:
+                        #logits = model(x)
+                        if args.model_type == "vit": # HOT-FIX. TODO: Move our ViT to /models/models_adapted/vit_my.py , so that for vanilla we call original ViT code (like in ResNet)
+                            logits = model(x)[0] # adapted to (logits, features) output
+                        else:
+                            logits = model(x)
+                    else:
+                        logits = model(x)[0]
 
             eval_loss = loss_fct(logits, y)
             #eval_loss = loss_fct(logits.view(-1, 200), y.view(-1))
@@ -452,18 +478,14 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
 
 
 #def train(args, model):
-def train(args, model, classifier=None, num_classes=None):
+def train(args, model, writer, train_loader, test_loader, classifier=None, num_classes=None):
+
     """ Train the model """
-    if args.local_rank in [-1, 0]:
-        os.makedirs(args.output_dir, exist_ok=True)
-        writer = SummaryWriter(log_dir=os.path.join("logs", args.name))
         
     best_step=0
     args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
     #set_seed(args) # my
 
-    # Prepare dataset
-    train_loader, test_loader = get_loader(args)
 
     # Prepare optimizer and scheduler
     if args.model_type == "cnn":
@@ -525,13 +547,20 @@ def train(args, model, classifier=None, num_classes=None):
             '''
 
 
-            if args.auto_scheduler:
+            if args.auto_scheduler: # a bit worse for some reason
+                # milestones = [ int(args.num_steps * (0.2 + 0.3*(int(args.split)/100))),
+                #             int(args.num_steps * (0.4 + 0.3*(int(args.split)/100))),
+                #             int(args.num_steps * (0.6 + 0.3*(int(args.split)/100))),
+                #             int(args.num_steps * (0.8 + 0.3*(int(args.split)/100))),
+                #             int(args.num_steps * (1.0 + 0.3*(int(args.split)/100))) ]
+
+                #try, should be better I guess (still worse than non-auto for some reason)
                 milestones = [ int(args.num_steps * (0.2 + 0.3*(int(args.split)/100))),
-                            int(args.num_steps * (0.4 + 0.3*(int(args.split)/100))),
+                            int(args.num_steps * (0.4 + 0.35*(int(args.split)/100))),
                             int(args.num_steps * (0.6 + 0.3*(int(args.split)/100))),
-                            int(args.num_steps * (0.8 + 0.3*(int(args.split)/100))),
-                            int(args.num_steps * (1.0 + 0.3*(int(args.split)/100))) ]
-            else:
+                            int(args.num_steps * (0.8 + 0.15*(int(args.split)/100))),
+                            int(args.num_steps * (1.0 + 0.1*(int(args.split)/100))) ]
+            else: # better
                 milestones = [ int(args.num_steps * 0.5), # 20`000
                             int(args.num_steps * 0.75), # 30`000
                             int(args.num_steps * 0.90), # 36`000
@@ -581,16 +610,50 @@ def train(args, model, classifier=None, num_classes=None):
         t_total = args.num_steps #
         
     if args.model_type == "vit":
-        optimizer = torch.optim.SGD(model.parameters(),
-                                    lr=args.learning_rate,
-                                    momentum=0.9,
-                                    weight_decay=args.weight_decay)
-        '''
-        # for hybrid
-        optimizer = torch.optim.SGD([{'params':model.transformer.parameters(),'lr':args.learning_rate},
-                                    {'params':model.head.parameters(),'lr':args.learning_rate}],
-                                    lr=args.learning_rate,momentum=0.9,weight_decay=args.weight_decay)
-        '''
+
+        if args.lr_ratio is not None:
+            layer_names = []
+            for idx, (name, param) in enumerate(model.named_parameters()):
+                layer_names.append(name)
+                #print(f'{idx}: {name}')
+        
+            parameters = []
+            # store params & learning rates
+            for idx, name in enumerate(layer_names):
+                lr = args.learning_rate
+                
+                # append layer parameters
+                if (name == "head.weight") or (name == "head.bias"):
+                    lr = args.learning_rate * args.lr_ratio
+                    print(f'{idx}: lr = {lr:.6f}, {name}')
+                # elif (150 <= idx <= 158): # 150 (last block of layer 4), 129 (full layer 4)
+                #     lr = args.learning_rate * lr_ratio_feats
+                #     print(f'{idx}: lr = {lr:.6f}, {name}')
+                else:
+                    lr = args.learning_rate
+
+                parameters += [{'params': [p for n, p in model.named_parameters() if ((n == name) and (p.requires_grad))],
+                                'lr':      lr}]
+                #print(f'{idx}: lr = {lr:.6f}, {name}')
+            
+            optimizer = torch.optim.SGD(parameters, 
+                        lr= args.learning_rate, 
+                        momentum=0.9, 
+                        weight_decay=args.weight_decay, 
+                        #nesterov=True
+                        )
+
+        else:
+            optimizer = torch.optim.SGD(model.parameters(),
+                                        lr=args.learning_rate,
+                                        momentum=0.9,
+                                        weight_decay=args.weight_decay)
+            '''
+            # for hybrid
+            optimizer = torch.optim.SGD([{'params':model.transformer.parameters(),'lr':args.learning_rate},
+                                        {'params':model.head.parameters(),'lr':args.learning_rate}],
+                                        lr=args.learning_rate,momentum=0.9,weight_decay=args.weight_decay)
+            '''
         
         t_total = args.num_steps
         if args.decay_type == "cosine":
@@ -911,9 +974,11 @@ def train(args, model, classifier=None, num_classes=None):
                     loss, logits = model(x, x_crop, y, mask, mask_crop)
 
                 else:
-                    logits, feat_labeled = model(x)
+
+                    #logits, feat_labeled = model(x)
 
                     if not args.vanilla:
+                        logits, feat_labeled = model(x)
 
                         #if args.model_type == "cnn":
                         logits_crop, feat_labeled_crop = model(x_crop)
@@ -1035,8 +1100,8 @@ def train(args, model, classifier=None, num_classes=None):
                             #loss = ce_loss + (0.1 * refine_loss) #0.01
                             #loss = ce_loss + (0.01 * refine_loss) #0.01
 
-                            loss = (0.5 * ce_loss) + (0.5 * refine_loss * args.dist_coef) #0.01 # main
-                            #loss = ce_loss + refine_loss * args.dist_coef #0.01 # main (no mean)
+                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * args.dist_coef) #0.01 # main
+                            loss = ce_loss + refine_loss * args.dist_coef #0.01 # main (no mean)
 
                             #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 10.0) #0.01 # main
                             #loss = (0.5 * ce_loss) + (0.5 * refine_loss) #0.01
@@ -1055,6 +1120,11 @@ def train(args, model, classifier=None, num_classes=None):
                         wandb.log({"dist_loss": refine_loss.item()})
 
                     else:
+                        if args.model_type == "vit": # HOT-FIX. TODO: Move our ViT to /models/models_adapted/vit_my.py , so that for vanilla we call original ViT code (like in ResNet)
+                            logits = model(x)[0] # adapted to (logits, features) output
+                        else:
+                            logits = model(x)
+                        
                         # print(logits.size())
                         # print(num_classes)
                         # print(y.size())
@@ -1185,13 +1255,14 @@ def train(args, model, classifier=None, num_classes=None):
     logger.info("End Training!")
 
 
+
 def main():
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument("--name", #required=True,
                         default=None,
                         help="Name of this run. Used for monitoring.")
-    parser.add_argument("--dataset", choices=["cifar10", "cifar100", "soyloc", "cotton", "CUB", "dogs", "cars", "air", "CRC"], 
+    parser.add_argument("--dataset", choices=["cifar10", "cifar100", "soyloc", "cotton", "CUB", "dogs", "cars", "air", "nabirds", "CRC"], 
                         default="CUB",
                         help="Which downstream task.")
     
@@ -1212,14 +1283,21 @@ def main():
                         default="resnet50",
                         help="Which specific model to use.")
 
-    parser.add_argument("--pretrained_dir", type=str, default="checkpoint/ViT-B_16.npz",
-    #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/imagenet21k_ViT-B_32.npz",           
+    #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/ViT-B_16.npz",
+    parser.add_argument("--pretrained_dir", type=str, default="checkpoint/imagenet21k_ViT-B_32.npz",           
     #parser.add_argument("--pretrained_dir", type=str, default="checkpoint/vit_16_224_imagenet1000.pth",
     #parser.add_argument("--pretrained_dir", type=str, default="",
-                        help="Where to search for pretrained ViT models.")
+                        help="Where to search for pretrained models.")
+
+    parser.add_argument("--checkpoint_dir", type=str, default="",
+                        help="Where to search for pretrained models for test_only mode.")
+                        # Can be mergerd with --pretrained_dir parameter
 
     parser.add_argument("--output_dir", default="output", type=str,
                         help="The output directory where checkpoints will be written.")
+
+    parser.add_argument("--checkpoint_name", default="", type=str,
+                        help="Checkpoint name to be saved")
 
     parser.add_argument("--img_size", default=448, type=int,
                         help="Resolution size")
@@ -1276,6 +1354,11 @@ def main():
                         default=None,
                         help="Name of the split")
 
+    parser.add_argument('--test_only', action='store_true',
+                        help="Whether to perform evaluation only")
+
+
+
     parser.add_argument('--sam', action='store_true',
                         help="Whether to use the SAM training setup")
     # parser.add_argument('--cls_head', action='store_true',
@@ -1288,7 +1371,7 @@ def main():
                         help="Whether to preprocess full dataset and upload it to RAM before training")
     
     parser.add_argument('--auto_scheduler', action='store_true',
-                        help="Whether to use the SAM training setup")
+                        help="Whether to use auto leearning rate scheduler")
     parser.add_argument("--lr_ratio", default=None, type=float, # required=True,
                         help="Learning rate ratio for the last classification layer.")
     parser.add_argument("--dist_coef", default=0.1, type=float, # required=True,
@@ -1362,19 +1445,29 @@ def main():
 
     # Model & Tokenizer Setup
     if args.sam:
-        args, model, classifier, num_classes = setup(args)
-        wandb.watch(model)
+        args, model, classifier, num_classes, train_loader, test_loader, writer = setup(args)
 
-        # Training
-        train(args, model, classifier, num_classes)
+        if args.test_only:
+            global_step = 0
+            accuracy = valid(args, model, writer, test_loader, global_step, classifier)
+
+        else:
+            wandb.watch(model)
+            # Training
+            train(args, model, writer, train_loader, test_loader, classifier, num_classes)
 
     else:    
-        args, model, num_classes = setup(args)
-        wandb.watch(model)
+        args, model, num_classes, train_loader, test_loader, writer = setup(args)
         #torch.autograd.set_detect_anomaly(True)
 
-        # Training
-        train(args, model, num_classes=num_classes)
+        if args.test_only:
+            global_step = 0
+            accuracy = valid(args, model, writer, test_loader, global_step)
+
+        else:
+            wandb.watch(model)
+            # Training
+            train(args, model, writer, train_loader, test_loader, num_classes=num_classes)
 
 
 
