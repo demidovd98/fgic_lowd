@@ -1,11 +1,11 @@
 from .resnet_my import *
 from .googlenet_my import *
 from .inception_my import *
+from .densenet_my import *
 
 # from .alexnet import *
 # from .vgg import *
 # from .squeezenet import *
-# from .densenet import *
 # from .mobilenet import *
 # from .mnasnet import *
 # from .shufflenetv2 import *
