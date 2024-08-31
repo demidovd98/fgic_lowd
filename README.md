@@ -129,7 +129,7 @@ conda activate /l/users/cv-805/envs/ffvt_u2n_p36
 #### Copy environment to the shared folder:
 
 ```
-conda create --prefix ./name --clone name
+conda create --prefix /<path>/<target_name> --clone <source_name>
 ```
 
 ```
