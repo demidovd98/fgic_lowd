@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 from .utils import load_state_dict_from_url
 
+import torch.nn.functional as F
+
+
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
@@ -213,6 +216,14 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
+
+
+        # my dropout
+        ## dropout = nn.Dropout2d(p=0.4, inplace=False)
+        ## x = F.dropout(x, p=0.4, training=self.training, inplace=False)
+        # x = F.dropout(x, p=0.4, training=True, inplace=False)
+
+
         x = torch.flatten(x, 1)
 
         #x = self.fc(x)
@@ -224,6 +235,15 @@ class ResNet(nn.Module):
         #return x
         return y, x 
     
+
+        ''' probably a more uniform option ?
+        if self.training:
+            y = self.fc(x)
+            return y, x 
+        else: # original
+            x = self.fc(x)
+            return x
+        '''
 
     def forward(self, x):
         return self._forward_impl(x)
