@@ -172,10 +172,6 @@ def get_loader(args):
         ##
 
 
-
-
-
-
     if args.dataset == "cifar10":
 
         transform_train_cifar = transforms.Compose([
@@ -205,12 +201,15 @@ def get_loader(args):
         ])
 
 
-        trainset = datasets.CIFAR10(args,
+        #trainset = datasets.CIFAR10(args,
+        trainset = CIFAR10_splits(args,
                                     root="./data",
                                     train=True,
                                     download=True,
                                     transform=transform_train_cifar)
-        testset = datasets.CIFAR10(args,
+        
+        #testset = datasets.CIFAR10(args,
+        testset = CIFAR10_splits(args,
                                    root="./data",
                                    train=False,
                                    download=True,
@@ -282,12 +281,15 @@ def get_loader(args):
             transforms.Normalize(mean=[0.5070, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2761]),
         ])
 
-        trainset = datasets.CIFAR100(args,
+        #trainset = datasets.CIFAR100(args,
+        trainset = CIFAR100_splits(args,  
                                     root="./data",
                                     train=True,
                                     download=True,
                                     transform=transform_train_cifar)
-        testset = datasets.CIFAR100(args,
+        
+        #testset = datasets.CIFAR100(args,
+        testset = CIFAR100_splits(args,                                    
                                    root="./data",
                                    train=False,
                                    download=True,
@@ -347,6 +349,50 @@ def get_loader(args):
         testset = INat2017(args.data_root, 'val', test_transform)
 
 
+
+    elif args.dataset == 'nabirds': ## WARNING not adapted augs
+        train_transform=transforms.Compose([
+                # transforms.Resize((600, 600), Image.BILINEAR),
+                # transforms.RandomCrop((448, 448)),
+                # transforms.RandomHorizontalFlip(),
+                # transforms.ToTensor(),
+                # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                
+
+                transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
+                #transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+                #transforms.RandomCrop((args.img_size, args.img_size)),
+
+                transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (from FFVT) mb try?
+
+                #transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])                                        
+                
+                ])
+
+        test_transform=transforms.Compose([
+                # transforms.Resize((600, 600), Image.BILINEAR),
+                # transforms.CenterCrop((448, 448)),
+                # transforms.ToTensor(),
+                # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
+
+                transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
+                #transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+                #transforms.CenterCrop((args.img_size, args.img_size)),
+
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])                                          
+                ])
+
+        trainset = NABirds(root=args.data_root, train=True, transform=train_transform)
+        testset = NABirds(root=args.data_root, train=False, transform=test_transform)
+
+
+
+
     elif args.dataset=="cotton" or args.dataset=="soyloc":
         train_transform=transforms.Compose([transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
                                 transforms.RandomCrop((args.img_size, args.img_size)),
@@ -365,28 +411,58 @@ def get_loader(args):
     
     
     elif args.dataset == 'dogs':
-        train_transform=transforms.Compose([transforms.Resize((600, 600), Image.BILINEAR),
-                            transforms.RandomCrop((448, 448)),
-                            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
-                            transforms.RandomHorizontalFlip(),
-                            transforms.ToTensor(),
-                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-        test_transform=transforms.Compose([transforms.Resize((600, 600), Image.BILINEAR),
-                            transforms.CenterCrop((448, 448)),
-                            transforms.ToTensor(),
-                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+
+        train_transform=transforms.Compose([
+            # transforms.Resize((600, 600), Image.BILINEAR),
+            # transforms.RandomCrop((448, 448)),
+            # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.ToTensor(),
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            
+
+            transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+            transforms.RandomCrop((args.img_size, args.img_size)),
+
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            #AutoAugImageNetPolicy(), # check
+                     
+            transforms.RandomHorizontalFlip(),
+
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
+            ])
+                                    
+        test_transform=transforms.Compose([
+            # transforms.Resize((600, 600), Image.BILINEAR),
+            # transforms.CenterCrop((448, 448)),
+            # transforms.ToTensor(),
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            
+
+            transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+            transforms.CenterCrop((args.img_size, args.img_size)),
+
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+
         trainset = dogs(root=args.data_root,
-                                train=True,
-                                cropped=False,
-                                transform=train_transform,
-                                download=True
-                                )
+                    train=True,
+                    cropped=False,
+                    transform=train_transform,
+
+                    #download=True
+                    download=False
+
+                    )
         testset = dogs(root=args.data_root,
-                                train=False,
-                                cropped=False,
-                                transform=test_transform,
-                                download=False
-                                )
+                    train=False,
+                    cropped=False,
+                    transform=test_transform,
+                    download=False
+                    )
     
     
     elif args.dataset== "CUB":
@@ -425,7 +501,7 @@ def get_loader(args):
 
 
                     transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
-                    #AutoAugImageNetPolicy(),
+                    #AutoAugImageNetPolicy(), # worse
                     
                     transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
@@ -482,6 +558,11 @@ def get_loader(args):
 
 
     elif args.dataset == 'cars':
+
+        if args.aug_vanilla is not None: #args.aug_basic or args.aug_scalemix or args.aug_multicrop or args.aug_asymmAugs:
+            #train_transform = transform_vanillaAugs
+            raise NotImplementedError()
+        
         trainset = CarsDataset(
                 # os.path.join(args.data_root,'devkit/cars_train_annos.mat'),
                 # os.path.join(args.data_root,'cars_train'),
@@ -538,7 +619,7 @@ def get_loader(args):
                         transforms.ToTensor(),
                         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                         ]),
-                )
+        )
 
         testset = CarsDataset(
                 # os.path.join(args.data_root,'cars_test_annos_withlabels.mat'),
@@ -564,58 +645,63 @@ def get_loader(args):
                         transforms.ToTensor(),
                         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                         ]),
-                )
+        )
 
 
     elif args.dataset== "air":
-        train_transform=transforms.Compose([
-                        # transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
-                        # transforms.RandomCrop((args.img_size, args.img_size)),
-                        # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add
-                        # transforms.RandomHorizontalFlip(),
-                        # #transforms.RandomVerticalFlip(),
-                        # transforms.ToTensor(),
-                        # #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                        # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
+        if args.aug_vanilla is not None: #args.aug_basic or args.aug_scalemix or args.aug_multicrop or args.aug_asymmAugs:
+            train_transform = transform_vanillaAugs
+
+        else:
+            train_transform=transforms.Compose([
+                # transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                # transforms.RandomCrop((args.img_size, args.img_size)),
+                # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add
+                # transforms.RandomHorizontalFlip(),
+                # #transforms.RandomVerticalFlip(),
+                # transforms.ToTensor(),
+                # #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
 
-                        #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
-                        transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
-                        transforms.RandomCrop((args.img_size, args.img_size)),
+                #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
+                transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+                transforms.RandomCrop((args.img_size, args.img_size)),
 
-                        #transforms.Resize((450, 450), Image.BILINEAR),
-                        # transforms.RandomChoice(
-                        #     [
-                        #         transforms.RandomCrop((300, 300), Image.BILINEAR),
-                        #         transforms.RandomCrop((400, 400), Image.BILINEAR),
-                        #     ]),
-                        #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
+                #transforms.Resize((450, 450), Image.BILINEAR),
+                # transforms.RandomChoice(
+                #     [
+                #         transforms.RandomCrop((300, 300), Image.BILINEAR),
+                #         transforms.RandomCrop((400, 400), Image.BILINEAR),
+                #     ]),
+                #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
 
-                        #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add
-                        AutoAugImageNetPolicy(),
+                #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add
+                AutoAugImageNetPolicy(),
 
-                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+                transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
 
-                        transforms.ToTensor(),
-                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                        ])
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
 
         test_transform=transforms.Compose([
-                        # transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
-                        # transforms.CenterCrop((args.img_size, args.img_size)),
-                        # #transforms.Resize((args.img_size, args.img_size)),
-                        # transforms.ToTensor(),
-                        # #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
-                        # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                        
-                        
-                        #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
-                        transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
-                        transforms.CenterCrop((args.img_size, args.img_size)),
+            # transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+            # transforms.CenterCrop((args.img_size, args.img_size)),
+            # #transforms.Resize((args.img_size, args.img_size)),
+            # transforms.ToTensor(),
+            # #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            
+            
+            #transforms.Resize((args.img_size, args.img_size), Image.BILINEAR),
+            transforms.Resize((args.resize_size, args.resize_size), Image.BILINEAR),
+            transforms.CenterCrop((args.img_size, args.img_size)),
 
-                        transforms.ToTensor(),
-                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                        ])
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
 
         trainset = FGVC_aircraft(args=args, is_train=True, transform=train_transform)
                                 #root=args.data_root, is_train=True, transform=train_transform, split=args.split)

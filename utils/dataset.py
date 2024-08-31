@@ -6711,7 +6711,9 @@ class FGVC_aircraft(Dataset_Meta):
 
 
 
-class dogs(Dataset):
+#class dogs(Dataset):
+class dogs(Dataset_Meta):
+
     """`Stanford Dogs <http://vision.stanford.edu/aditya86/ImageNetDogs/>`_ Dataset.
     Args:
         root (string): Root directory of dataset where directory
@@ -6736,6 +6738,18 @@ class dogs(Dataset):
                  transform=None,
                  target_transform=None,
                  download=False):
+
+
+    # def __init__(self, args, #root, split=None, vanilla=None, saliency=False, preprocess_full_ram=False, aug_type=None, # external general class parameters
+    #              is_train=True, transform=None,  # mandatory internal general class parameters
+    #              data_len=None, inter_low_path=None, inter_img_path=None, # extra internal general class parameters
+    #              cleaned=False # class-specific parameters
+    #             ):
+
+
+
+
+
 
         # self.root = join(os.path.expanduser(root), self.folder)
         self.root = root
@@ -7198,4 +7212,757 @@ class cotton():
         return len(self.imgs_name)
 
 
+
+
+
+from PIL import Image
+import os
+import os.path
+import numpy as np
+import pickle
+
+from torchvision.datasets.vision import VisionDataset
+from torchvision.datasets.utils import check_integrity, download_and_extract_archive
+
+
+# adapt to Dataset_Meta
+class CIFAR10_splits(VisionDataset):
+    """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
+
+    Args:
+        root (string): Root directory of dataset where directory
+            ``cifar-10-batches-py`` exists or will be saved to if download is set to True.
+        train (bool, optional): If True, creates dataset from training set, otherwise
+            creates from test set.
+        transform (callable, optional): A function/transform that takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.RandomCrop``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+        download (bool, optional): If true, downloads the dataset from the internet and
+            puts it in root directory. If dataset is already downloaded, it is not
+            downloaded again.
+
+    """
+    base_folder = 'cifar-10-batches-py'
+    url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
+    filename = "cifar-10-python.tar.gz"
+    tgz_md5 = 'c58f30108f718f92721af3b95e74349a'
+    train_list = [
+        ['data_batch_1', 'c99cafc152244af753f735de768cd75f'],
+        ['data_batch_2', 'd4bba439e000b95fd0a9bffe97cbabec'],
+        ['data_batch_3', '54ebc095f3ab1f0389bbae665268c751'],
+        ['data_batch_4', '634d18415352ddfa80567beed471001a'],
+        ['data_batch_5', '482c414d41f54cd18b22e5b47cb7c3cb'],
+    ]
+
+    test_list = [
+        ['test_batch', '40351d587109b95175f43aff81a1287e'],
+    ]
+    meta = {
+        'filename': 'batches.meta',
+        'key': 'label_names',
+        'md5': '5ff9c542aee3614f3951f8cda6e48888',
+    }
+
+    dataset_name = "cifar10"
+
+    #def __init__(self, root, train=True, transform=None, target_transform=None,
+    def __init__(self, args, root, train=True, transform=None, target_transform=None,
+                 download=False):
+
+        super(CIFAR10_splits, self).__init__(root, transform=transform,
+                                      target_transform=target_transform)
+
+        self.train = train  # training set or test set
+
+        if download:
+            self.download()
+
+        if not self._check_integrity():
+            raise RuntimeError('Dataset not found or corrupted.' +
+                               ' You can use download=True to download it')
+
+        if self.train:
+            downloaded_list = self.train_list
+        else:
+            downloaded_list = self.test_list
+
+
+        # My:
+        print()
+        print(self.dataset_name)
+        #print(dataset_name)
+
+        #self.saliency = False
+
+        self.vanilla = args.vanilla
+
+        #self.low_data = low_data #True
+
+        self.aug_type = args.aug_type
+        self.aug_crop = args.aug_crop
+
+        if transform is not None:
+            self.transform = transform
+        
+        self.img_size = args.img_size
+        self.resize_size = args.resize_size
+        ##
+
+
+        self.data = []
+        self.targets = []
+
+        # now load the picked numpy arrays
+        for file_name, checksum in downloaded_list:
+            file_path = os.path.join(self.root, self.base_folder, file_name)
+            with open(file_path, 'rb') as f:
+                entry = pickle.load(f, encoding='latin1')
+                self.data.append(entry['data'])
+                if 'labels' in entry:
+                    self.targets.extend(entry['labels'])
+                else:
+                    self.targets.extend(entry['fine_labels'])
+
+        self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
+        self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
+
+        self._load_meta()
+
+    def _load_meta(self):
+        path = os.path.join(self.root, self.base_folder, self.meta['filename'])
+        if not check_integrity(path, self.meta['md5']):
+            raise RuntimeError('Dataset metadata file not found or corrupted.' +
+                               ' You can use download=True to download it')
+        with open(path, 'rb') as infile:
+            data = pickle.load(infile, encoding='latin1')
+            self.classes = data[self.meta['key']]
+        self.class_to_idx = {_class: i for i, _class in enumerate(self.classes)}
+
+
+
+    '''default
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+    '''
+
+
+
+
+    def __getitem__(self, index):
+        # set_seed = True
+        # seed_my = 42
+        # if set_seed:
+        #     random.seed(seed_my + index)
+        #     np.random.seed(seed_my + index)
+        #     torch.manual_seed(seed_my + index)
+        #     torch.cuda.manual_seed(seed_my + index)
+
+        if self.train:
+            # if self.count < 5: print(self.count)
+            # if self.count < 5: print(index)
+
+            # if self.saliency:
+            #     img, target, img_name, mask = self.img[index], self.label[index], self.img_name[index], self.mask[index]
+            # else:
+            #     img, target, img_name = self.img[index], self.label[index], self.img_name[index]
+
+            img, target = self.data[index], self.targets[index]
+
+
+            # if self.count < 5: print(img.shape)
+            # if self.count < 5: print(mask.shape)
+            # print(img_name)
+            # print(img.shape)
+            # print(mask.shape)
+
+            # if not self.preprocess_full_ram:
+            #     # img = scipy.misc.imread(img)
+            #     img = self.preprocess(child=self.child, id_f=index, path=img)
+            '''
+            h_max = img.shape[0] # y
+            w_max = img.shape[1] # x
+
+            x_min = w_max * 0.05 # 0.1
+            x_max = w_max * 0.95 # # 0.9 w -> x
+
+            y_min = h_max * 0.05 # 0.1
+            y_max = h_max * 0.95 # # 0.9 h -> y
+
+            if y_min >= y_max:
+                print("[WARNING] bad_y.", "min:", y_min, "max:", y_max, "y:", y, "h:", h)
+                # y_min = 0
+                # y_max = h_max
+            if x_min >= x_max:
+                print("[WARNING] bad_x", "min:", x_min, "max:", x_max, "x:", x, "w:", w)                               
+                # x_min = 0
+                # x_max = w_max
+
+            # Crop image for bbox:
+            if len(img.shape) == 3:
+                # Black mask:
+                # for j in range(3):
+                #     img_temp[:, :, j] = img_temp[:, :, j] * img_mask
+
+                #if id_f < 5: print(img_temp.shape)
+                #test_img_temp = test_img_temp[int(y):int(y + h), int(x):int(x + w), :] # h, w, ch
+                img = img[int(y_min):int(y_max), int(x_min):int(x_max), :] # h, w, ch
+                #if id_f < 5: print(img_temp.shape)
+            else:
+                # Black mask:
+                #img_temp[:, :] = img_temp[:, :] * img_mask
+
+                #if id_f < 5: print(img_temp.shape)
+                img = img[int(y_min):int(y_max), int(x_min):int(x_max)] # h, w
+                #if id_f < 5: print(img_temp.shape)
+            '''
+
+
+
+            #rand_crop_im_mask = True # True
+            #if rand_crop_im_mask:
+            if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+                import torch
+                import random
+                from torchvision import transforms
+
+                h_max_img = img.shape[0]
+                w_max_img = img.shape[1]
+
+
+
+                #double_crop = True # True # two different crops
+
+                ##portion1side = torch.distributions.uniform.Uniform(0.5,0.67).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                #portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                ##portion1side = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                portion1side = torch.distributions.uniform.Uniform(0.1,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                #portion1side = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+
+                #if double_crop:
+                if (self.aug_type == "double_crop"):
+                    ##portion1side_2 = torch.distributions.uniform.Uniform(0.5,0.8).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
+                    ##portion1side_2 = torch.distributions.uniform.Uniform(0.67,0.8).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
+                    portion1side_2 = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
+                    
+                h_crop_mid_img = int(h_max_img * portion1side)
+                ##h_crop_mid = 368 # 384 (92%), 368 (84%), 352 (77%), 336 (70%), 320 (64%), 304 (57%)
+                #h_crop_mid_img = int(h_max_img * 0.5) #* 0.7) # 384 (92% - 0.96), 368 (84% - 0.92), 352 (77% - 0.88), 336 (70% - 0.84), 320 (64% - 0.80), 304 (57% - 0.75), 282 (50 % - 0.7)
+
+                w_crop_mid_img = int(w_max_img * portion1side)
+                ##w_crop_mid = 368 # 384 (92%), 368 (84%), 352 (77%), 336 (70%), 320 (64%), 304 (57%)
+                #w_crop_mid_img = int(w_max_img * 0.5) #* 0.7) # 384 (92% - 0.96), 368 (84% - 0.92), 352 (77% - 0.88), 336 (70% - 0.84), 320 (64% - 0.80), 304 (57% - 0.75), 282 (50 % - 0.7)
+
+                h_crop_min_img = random.randint(0, (h_max_img - h_crop_mid_img)) # 40) #, 400-360) #, h - th)
+                w_crop_min_img = random.randint(0, (w_max_img - w_crop_mid_img)) # 40)  #, 400-360) #, w - tw)
+
+                h_crop_max_img = h_crop_mid_img + h_crop_min_img
+                w_crop_max_img = w_crop_mid_img + w_crop_min_img
+
+
+                # Crop image for bbox:
+                if len(img.shape) == 3:
+                    # Black mask:
+                    # for j in range(3):
+                    #     test_img_temp[:, :, j] = test_img_temp[:, :, j] * img_mask
+
+                    #test_img_temp = test_img_temp[int(y):int(y + h), int(x):int(x + w), :] # h, w, ch
+                    img_crop = img[int(h_crop_min_img):int(h_crop_max_img), int(w_crop_min_img):int(w_crop_max_img), :] # h, w, ch
+                else:
+                    # Black mask:
+                    #test_img_temp[:, :] = test_img_temp[:, :] * img_mask
+
+                    img_crop = img[int(h_crop_min_img):int(h_crop_max_img), int(w_crop_min_img):int(w_crop_max_img)] # h, w
+                    img_crop = np.stack([img_crop] * 3, 2)
+
+
+                #if double_crop:
+                if (self.aug_type == "double_crop"):                    
+                    h_crop_mid_img = int(h_max_img * portion1side_2) 
+                    w_crop_mid_img = int(w_max_img * portion1side_2)
+
+                    h_crop_min_img = random.randint(0, (h_max_img - h_crop_mid_img)) # 40) #, 400-360) #, h - th)
+                    w_crop_min_img = random.randint(0, (w_max_img - w_crop_mid_img)) # 40)  #, 400-360) #, w - tw)
+
+                    h_crop_max_img = h_crop_mid_img + h_crop_min_img
+                    w_crop_max_img = w_crop_mid_img + w_crop_min_img
+
+                    # Crop image for bbox:
+                    if len(img.shape) == 3:
+                        img_crop2 = img[int(h_crop_min_img):int(h_crop_max_img), int(w_crop_min_img):int(w_crop_max_img), :] # h, w, ch
+                    else:
+                        img_crop2 = img[int(h_crop_min_img):int(h_crop_max_img), int(w_crop_min_img):int(w_crop_max_img)] # h, w
+                        img_crop2 = np.stack([img_crop2] * 3, 2)
+
+
+            if len(img.shape) == 2:
+                # print(img.shape)
+                img = np.stack([img] * 3, 2)
+                # print(mask.shape)
+                # print(img.shape)
+            
+            # if rand_crop_im_mask:
+            #     if len(img_crop.shape) == 2:
+            #         img_crop = np.stack([img_crop] * 3, 2)
+
+            # try:
+            #     torch.set_printoptions(profile="full")
+            #     np.printoptions(threshold=np.inf)                
+            #     print(img.tile)
+            #     print("tile???")
+            # except:
+            #     pass
+
+            # img = (img).astype(np.uint8) # for cars/air ? (works without it)
+
+            img = Image.fromarray(img, mode='RGB')
+
+            #if rand_crop_im_mask:
+            if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+                # img_crop = (img_crop).astype(np.uint8) # for cars/air ? (works without it)
+                img_crop = Image.fromarray(img_crop, mode='RGB')
+                
+                #if double_crop:
+                if (self.aug_type == "double_crop"):
+                    # img_crop2 = (img_crop2).astype(np.uint8) # for cars/air ? (works without it)
+                    img_crop2 = Image.fromarray(img_crop2, mode='RGB')
+    
+
+            if index < 10:
+                # # import time
+                from torchvision.utils import save_image
+                from torchvision import transforms
+
+                img_tem = transforms.ToTensor()(img)
+                img_name = ("test/img_bef_" + str(index) + ".png")
+                save_image(img_tem, img_name)
+
+                #if rand_crop_im_mask:
+                if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+                    img_tem_crop = transforms.ToTensor()(img_crop)
+                    img_name_crop = ("test/img_bef_" + str(index) + "_crop1.png")
+                    save_image(img_tem_crop, img_name_crop)
+                    
+                    #if double_crop:
+                    if (self.aug_type == "double_crop"):
+                        img_tem_crop2 = transforms.ToTensor()(img_crop2)
+                        img_name_crop2 = ("test/img_bef_" + str(index) + "_crop2.png")
+                        save_image(img_tem_crop2, img_name_crop2)
+
+
+            flip_mask_as_image = False #True # if False - turn on RandomHorizontalFlip in data_utils !!!
+            flipped = False # temp
+           
+            #random_choice_vanilla = True
+        
+
+            if self.transform is not None:
+                #img = self.transform(img)
+
+                if not flip_mask_as_image: # normal
+
+                    img = self.transform(img)
+                    
+                    #if rand_crop_im_mask:
+                    if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+
+                        if self.aug_crop is not None:
+                            transform_img_flip = self.get_transforms()
+                        else:
+                            if self.dataset_name == "CUB":
+                                transform_img_flip = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    # #transforms.Resize((160, 160),Image.BILINEAR), # my for bbox
+                                    # #transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
+                                    # transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    # #transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    ##AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "cars":
+                                transform_img_flip = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    ##transforms.Resize((192, 192),Image.BILINEAR), # my for bbox                                
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "air":
+                                transform_img_flip = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "cifar10":
+                                    transform_img_flip = transforms.Compose([
+                                        
+                                        #transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
+                                        transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+                                        
+                                        #AutoAugImageNetPolicy(),
+                                        #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+
+                                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                        transforms.ToTensor(),
+                                        #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                                        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2475, 0.2435, 0.2615]),
+                                    ])
+                            elif self.dataset_name == "cifar100":
+                                    transform_img_flip = transforms.Compose([
+                                        
+                                        #transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
+                                        transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+                                        
+                                        #AutoAugImageNetPolicy(),
+                                        #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+
+                                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                        transforms.ToTensor(),
+                                        #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                                        transforms.Normalize(mean=[0.5070, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2761]),
+                                    ])                            
+                            else:
+                                raise NotImplementedError()
+
+
+                        #img_crop = self.transform(img_crop)
+                        img_crop = transform_img_flip(img_crop)
+
+                        #if double_crop:
+                        if (self.aug_type == "double_crop"):
+                            #img_crop2 = self.transform(img_crop2)
+
+                            # if self.aug_crop is not None:
+                            #     transform_img_flip2 = self.get_transforms()
+                            # else:
+                            if self.dataset_name == "CUB":
+                                transform_img_flip2 = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    ##transforms.Resize((192, 192),Image.BILINEAR), # my for bbox
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox                                
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    ##AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "cars":
+                                transform_img_flip2 = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "air":
+                                transform_img_flip2 = transforms.Compose([
+                                    #transforms.Resize((args.resize_size, args.resize_size),Image.BILINEAR),
+                                    #transforms.Resize((560, 560), Image.BILINEAR), #transFG 600
+                                    #transforms.RandomCrop((args.img_size, args.img_size)),
+                                    
+                                    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MANUAL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    #transforms.Resize((224, 224),Image.BILINEAR), # my for bbox
+                                    ##transforms.Resize((448, 448),Image.BILINEAR), # my for bbox
+                                    transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+                                    AutoAugImageNetPolicy(),
+                                    
+                                    transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                    transforms.ToTensor(),
+                                    #transforms.Normalize([0.8416, 0.867, 0.8233], [0.2852, 0.246, 0.3262])])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                                    ])
+                            elif self.dataset_name == "cifar10":
+                                    transform_img_flip2 = transforms.Compose([
+                                        
+                                        #transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
+                                        transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                        #AutoAugImageNetPolicy(),
+                                        #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+
+                                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                        transforms.ToTensor(),
+                                        #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                                        transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2475, 0.2435, 0.2615]),
+                                    ])
+                            elif self.dataset_name == "cifar100":
+                                    transform_img_flip2 = transforms.Compose([
+                                        
+                                        #transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.05, 1.0)),
+                                        transforms.Resize((self.img_size, self.img_size),Image.BILINEAR), # my for bbox
+
+                                        #AutoAugImageNetPolicy(),
+                                        #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4), # my add (FFVT)
+
+                                        transforms.RandomHorizontalFlip(), # !!! FLIPPING in dataset.py !!!
+
+                                        transforms.ToTensor(),
+                                        #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                                        transforms.Normalize(mean=[0.5070, 0.4865, 0.4409], std=[0.2673, 0.2564, 0.2761]),
+                                    ])                                                   
+                            else:
+                                raise NotImplementedError()
+
+
+                            img_crop2 = transform_img_flip2(img_crop2)
+                            #img_crop2 = transform_img_flip(img_crop2)
+                            
+
+            # My:
+            #import time
+            if index < 10:
+                from torchvision.utils import save_image
+                from torchvision import transforms
+
+                #print(img.shape)
+                #print("next img")
+                img_name = ("test/img_aft_" + str(index) + ".png")
+                save_image( img, img_name)
+
+                #if rand_crop_im_mask:
+                if (self.aug_type == "single_crop") or (self.aug_type == "double_crop"):
+                    img_name_crop = ("test/img_aft_" + str(index) + "_crop1.png")
+                    save_image( img_crop, img_name_crop)
+                    
+                    #if double_crop:
+                    if (self.aug_type == "double_crop"):                        
+                        img_name_crop2 = ("test/img_aft_" + str(index) + "_crop2.png")
+                        save_image( img_crop2, img_name_crop2)
+
+
+
+        else:
+            # if self.saliency:
+            #     img, target, img_name, mask = self.img[index], self.label[index], self.img_name[index], self.mask[index]
+            # else:
+            #     img, target, img_name = self.img[index], self.label[index], self.img_name[index]
+
+            img, target = self.data[index], self.targets[index]
+
+            # if not self.preprocess_full_ram:
+            #     # img = scipy.misc.imread(img)
+            #     img = self.preprocess(child=self.child, id_f=index, path=img)
+
+            '''
+            h_max = img.shape[0] # y
+            w_max = img.shape[1] # x
+
+            x_min = w_max * 0.05 # 0.1
+            x_max = w_max * 0.95 # # 0.9 w -> x
+
+            y_min = h_max * 0.05 # 0.1
+            y_max = h_max * 0.95 # # 0.9 h -> y
+
+            if y_min >= y_max:
+                print("[WARNING] bad_y.", "min:", y_min, "max:", y_max, "y:", y, "h:", h)
+                # y_min = 0
+                # y_max = h_max
+            if x_min >= x_max:
+                print("[WARNING] bad_x", "min:", x_min, "max:", x_max, "x:", x, "w:", w)                               
+                # x_min = 0
+                # x_max = w_max
+
+            # Crop image for bbox:
+            if len(img.shape) == 3:
+                # Black mask:
+                # for j in range(3):
+                #     img_temp[:, :, j] = img_temp[:, :, j] * img_mask
+
+                #if id_f < 5: print(img_temp.shape)
+                #test_img_temp = test_img_temp[int(y):int(y + h), int(x):int(x + w), :] # h, w, ch
+                img = img[int(y_min):int(y_max), int(x_min):int(x_max), :] # h, w, ch
+                #if id_f < 5: print(img_temp.shape)
+            else:
+                # Black mask:
+                #img_temp[:, :] = img_temp[:, :] * img_mask
+
+                #if id_f < 5: print(img_temp.shape)
+                img = img[int(y_min):int(y_max), int(x_min):int(x_max)] # h, w
+                #if id_f < 5: print(img_temp.shape)
+            '''
+
+
+
+
+            # print(img_name)
+            # print(img.shape)
+            # print(mask.shape)
+
+            if len(img.shape) == 2:
+                # print(img_name)
+                # print(img.shape)                
+                img = np.stack([img] * 3, 2)
+                # print(mask.shape)
+                # print(img.shape)
+                
+            # try:
+            #     torch.set_printoptions(profile="full")
+            #     np.printoptions(threshold=np.inf)                
+            #     print(img.tile)
+            #     print("tile???")
+            # except:
+            #     pass            
+            
+
+            # img = (img).astype(np.uint8) # for cars ? (works without it)
+
+            img = Image.fromarray(img, mode='RGB')
+
+            if self.transform is not None:
+                img = self.transform(img)
+
+
+        if self.train:
+            #if double_crop:
+            if (self.aug_type == "double_crop"):
+                #return img, img_crop, img_crop, target # accidentally
+                return img, img_crop, img_crop2, target
+            elif (self.aug_type == "single_crop"):
+                return img, img_crop, target
+            else:
+                #if crop_only:
+                if self.vanilla:
+                    return img, target
+                else:
+                    raise NotImplementedError()
+        else:
+            return img, target
+
+
+
+
+
+    def __len__(self):
+        return len(self.data)
+
+    def _check_integrity(self):
+        root = self.root
+        for fentry in (self.train_list + self.test_list):
+            filename, md5 = fentry[0], fentry[1]
+            fpath = os.path.join(root, self.base_folder, filename)
+            if not check_integrity(fpath, md5):
+                return False
+        return True
+
+    def download(self):
+        if self._check_integrity():
+            print('Files already downloaded and verified')
+            return
+        download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
+
+    def extra_repr(self):
+        return "Split: {}".format("Train" if self.train is True else "Test")
+
+
+
+# adapt to Dataset_Meta
+class CIFAR100_splits(CIFAR10_splits):
+    """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
+
+    This is a subclass of the `CIFAR10` Dataset.
+    """
+    base_folder = 'cifar-100-python'
+    url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
+    filename = "cifar-100-python.tar.gz"
+    tgz_md5 = 'eb9058c3a382ffc7106e4002c42a8d85'
+    train_list = [
+        ['train', '16019d7e3df5f24257cddd939b257f8d'],
+    ]
+
+    test_list = [
+        ['test', 'f0ef6b0ae62326f3e7ffdfab6717acfc'],
+    ]
+    meta = {
+        'filename': 'meta',
+        'key': 'fine_label_names',
+        'md5': '7973b15100ade9c7d40fb424638fde48',
+    }
+
+    dataset_name = "cifar100"
 
