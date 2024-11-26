@@ -1,4 +1,4 @@
-# Data Augmentation through Self-Distillation for Fine-Grained Visual Recognition in Low Data Regimes
+# Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes
 
 
 ## Approach
@@ -7,7 +7,7 @@
 <img src="docs/Images/architecture.png" width="750">
 </p>
 
-> **<p align="justify"> Abstract:** *The emerging task of fine-grained image classification in low-data regimes assumes the presence of low inter-class variance and large intra-class variation along with a highly limited amount of training samples per class available. In this paper, we present a novel approach, designed to enhance deep neural network performance on this challenge. Specifically, we propose a framework, called AD-Net, leveraging the power of Augmentation and Distillation techniques. Our approach is able to refine learned features through self-distillation on augmented samples, mitigating harmful overfitting. In detail, our AD-Net incorporates a multi-branch configuration with shared weights, enabling efficient knowledge transfer and feature consolidation. We provide an extensive study on the impact of distillation architecture, augmentation types, and objective functions in our framework, highlighting the importance of each in achieving optimal performance. We conduct comprehensive experiments on popular fine-grained image classification benchmarks and demonstrate consistent improvement over state-of-the-art low-data techniques based on ResNet-50 model, providing an absolute improvement of up to 10% using the lowest data regimes. AD-Net establishes a significant step forward in low-data fine-grained image classification, showcasing promising results and insights for future research in this domain. Well-documented source code and trained models will be publicly released* </p>
+> **<p align="justify"> Abstract:** *The emerging task of fine-grained image classification in low-data regimes assumes the presence of low inter-class variance and large intra-class variation along with a highly limited amount of training samples per class. However, traditional ways of separately dealing with fine-grained categorisation and extremely scarce data may be inefficient under both these harsh conditions presented together. In this paper, we present a novel framework, called AD-Net, aiming to enhance deep neural network performance on this challenge by leveraging the power of Augmentation and Distillation techniques. Specifically, our approach is designed to refine learned features through self-distillation on augmented samples, mitigating harmful overfitting. We conduct comprehensive experiments on popular fine-grained image classification benchmarks where our AD-Net demonstrates consistent improvement over traditional fine-tuning and state-of-the-art low-data techniques. Remarkably, with the smallest data available, our framework shows an outstanding relative accuracy increase of up to 45 % compared to standard ResNet-50 and up to 27 % compared to the closest SOTA runner-up. We emphasise that our approach is practically architecture-independent and adds zero extra cost at inference time. Additionally, we provide an extensive study on the impact of every framework’s component, highlighting the importance of each in achieving optimal performance.* </p>
 
 
 ## Main Contributions
@@ -98,50 +98,11 @@ Vanilla:
 python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 --img_size 224 --resize_size 256 --train_batch_size 24 --eval_batch_size 24 --learning_rate 0.03 --num_steps 40000 --fp16 --eval_every 200 --split 10 --lr_ratio 1.0 --vanilla
 ```
 
-
-## Dev:
-
-```
-bash init.sh 
-
-module load cuda-10.2 # no need anymore
-nvcc --version # no need anymore
-```
-
-### Use local environment:
-```
-cd '/l/users/20020067/Activities/FGIC/low_data/Combined/Refine/fgic_lowd'
-
-source /apps/local/anaconda2023/conda_init.sh
-conda activate ffvt_u2n_p36_timm # old: ffvt_u2n_p36 (messed up torch and timm)
-```
-
-### Use shared environment:
-```
-cd '/path/to/cloned/repo/'
-
-source /apps/local/anaconda2023/conda_init.sh
-conda activate /l/users/cv-805/envs/ffvt_u2n_p36
-```
-
-### Misc:
-
-#### Copy environment to the shared folder:
-
-```
-conda create --prefix /<path>/<target_name> --clone <source_name>
-```
-
-```
-CUB_ft_05LossFocal01_resnet50vanilla_1k_224_bs24_doubleCrop2564n6481_sepNfix_autoSched05_LrRatio10_rn50_40k_noSAMtrashVanilla_doubleAugs224_KLlossSAM001_batchmean_inputLog_lr003_ld10_test
-```
-
-
 <hr />
 
 
 # 🆕 News
-* **(Nov 30, 2023)** 
+* **(Nov 16, 2024)** 
   * Repo description added (README.md).
   * Training and evaluation code is released.
 
@@ -159,7 +120,15 @@ CUB_ft_05LossFocal01_resnet50vanilla_1k_224_bs24_doubleCrop2564n6481_sepNfix_aut
 In case you would like to utilise or refer to our approach (source code, trained models, or results) in your research, please consider citing:
 
 ```
-(Soon)
+@misc{demidov2024extractlessefficientfinegrained,
+      title={Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes}, 
+      author={Dmitry Demidov and Abduragim Shtanchaev and Mihail Mihaylov and Mohammad Almansoori},
+      year={2024},
+      eprint={2406.19814},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2406.19814}, 
+}
 ```
 
 ## Contacts
