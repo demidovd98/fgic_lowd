@@ -60,6 +60,13 @@ conda create --name <env> --file requirements_conda.txt
 ```
 
 
+## Data Preparation
+
+Put the datasets to the corresponding folders in the '/datasets/' directory.
+
+Spilts for low-data regimes (10-100 %) are provided for each dataset in the corresponding directory: '/datasets/<dataset>/low_data/'.
+
+
 ## Training and Evaluation
 
 
