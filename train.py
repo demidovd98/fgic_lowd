@@ -132,17 +132,6 @@ def setup(args):
                 else:
                     proj_size = 2048
 
-                '''
-                backbone_name = 'resnet152'
-                #backbone_name = 'resnet101'
-                #backbone_name = 'resnet50'
-                proj_size = 2048
-
-                #backbone_name = 'resnet34'
-                #backbone_name = 'resnet18'
-                #proj_size = 512
-                '''
-
                 #pretrained_path = '~/.torch/models/moco_v2_800ep_pretrain.pth.tar'
                 pretrained_path = None
 
@@ -289,54 +278,7 @@ def setup(args):
             raise Exception(f"[ERROR] Undefined model type {args.model_type}") 
 
     else:
-        # checkpoint = torch.hub.load_state_dict_from_url(
-        #     url="https://dl.fbaipublicfiles.com/deit/deit_base_patch16_224-b5f2ef4d.pth",
-        #     map_location="cpu", check_hash=True,
-        # )
-        # model.load_state_dict(checkpoint["model"])
-        
-        # checkpoint = torch.hub.load_state_dict_from_url(
-        #     url="https://dl.fbaipublicfiles.com/deit/deit_base_patch16_224-b5f2ef4d.pth",
-        #     map_location="cpu", check_hash=True
-        # )
-        # msg = model.load_state_dict({x: y for x, y in checkpoint["model"].items() if x not in ["head.weight",
-        #                                                                                         "head.bias",
-        #                                                                                         "pos_embed"]},
-        #                             strict=False)
-        # print(msg)
-
-
-        #model.load_state_dict(torch.load("deit_base_patch16_224-b5f2ef4d.pth", map_location=torch.device('cpu')))
-        #model = VisionTransformer(config, args.img_size, zero_head=True, num_classes=num_classes, smoothing_value=args.smoothing_value)
-        # model.load_state_dict(torch.load("deit_base_patch16_224-b5f2ef4d.pth", map_location=torch.device('cpu')))
-
-
-        #model = torch.hub.load('facebookresearch/deit:main', 'deit_base_patch16_224', pretrained=True)
-
         raise NotImplementedError()
-        model = timm.create_model('deit3_base_patch16_224_in21ft1k', img_size=400, pretrained=True, num_classes=200) #.cuda()
-
-        #deit_base_patch16_224
-        #deit3_base_patch16_224
-        #deit3_base_patch16_224_in21ft1k
-
-        
-        # #deit_base_patch16_224-b5f2ef4d.pth
-        # #deit_3_base_224_1k.pth 
-        # #deit_3_base_224_21k.pth
-        # checkpoint = torch.load("deit_base_patch16_224-b5f2ef4d.pth", map_location=torch.device('cpu'))
-        
-        # # torch.hub.load_state_dict_from_url(
-        # #     url="https://dl.fbaipublicfiles.com/deit/deit_base_patch16_224-b5f2ef4d.pth",
-        # #     map_location="cpu", check_hash=True
-        # # )
-        # msg = model.load_state_dict({x: y for x, y in checkpoint["model"].items() if x not in ["head.weight",
-        #                                                                                         "head.bias",
-        #                                                                                         "pos_embed"]},
-        #                             strict=False)
-        # print(msg)
-        
-        #print(model)
 
 
     # log writer
@@ -374,7 +316,6 @@ def setup(args):
 
 
 
-#def valid(args, model, writer, test_loader, global_step):
 def valid(args, model, writer, test_loader, global_step, classifier=None):
 
     # Validation!
@@ -477,7 +418,6 @@ def valid(args, model, writer, test_loader, global_step, classifier=None):
 
 
 
-#def train(args, model):
 def train(args, model, writer, train_loader, test_loader, classifier=None, num_classes=None):
 
     """ Train the model """
@@ -524,27 +464,6 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                         momentum=0.9, 
                         weight_decay=args.weight_decay, 
                         nesterov=True)
-            
-            '''
-            # optimizer = torch.optim.SGD(model.parameters(), 
-            #             lr= args.learning_rate, 
-            #             momentum=0.9, 
-            #             weight_decay=args.weight_decay, 
-            #             nesterov=True, # True
-            #             )
-
-            # optimizer = torch.optim.SGD([
-            #             {'params': model.base.parameters()},
-            #             {'params': model.fc.parameters(), 'lr': args.learning_rate * lr_ratio}, ], 
-            #             lr= args.learning_rate, 
-            #             momentum=0.9, 
-            #             weight_decay=args.weight_decay, 
-            #             nesterov=True)
-
-            #milestones = [6000, 12000, 18000, 24000, 30000]
-            #milestones = [8000, 16000, 24000, 32000, 40000]
-            #milestones = [10000, 20000, 30000, 40000]    
-            '''
 
 
             if args.auto_scheduler: # a bit worse for some reason
@@ -902,14 +821,8 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
 
 
             if args.sam:
-                # y_test = model(x)
-                # print(len(y_test))
-                # print(y_test[0].size())
-                # print(y_test[1].size())
-                # print(y_test[2].size())
 
                 feat_labeled = model(x)[0] 
-                #print(feat_labeled.size())
                 
                 logits = classifier(feat_labeled.cuda())[0]  #feat_labeled/bp_out_feat
 
@@ -923,30 +836,9 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                         feat_labeled_crop2 = model(x_crop2)[0]
                         logits_crop2 = classifier(feat_labeled_crop2.cuda())[0] #feat_labeled/bp_out_feat
 
-                        ##refine_loss = refine_loss_criterion(logits_crop.view(-1, 200), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
-                        
-                        #refine_loss = refine_loss_criterion(logits_crop.view(-1, 200), logits_crop2.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
-                        
-                        #refine_loss = 3.0 * abs( F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='batchmean') ) #reduction='sum')
-                        
-                        #refine_loss = abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                        #refine_loss = 0.00001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                        #refine_loss = 0.0001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
-                        #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
                         refine_loss = 0.00001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean') ) #reduction='sum')
 
-                        #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='batchmean', log_target=True) )
-                        #refine_loss = 0.0001 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') )
-                        #refine_loss = 0.1 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='none') )
-
-                        #refine_loss = 0.1 * abs( F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='sum') ) #reduction='sum')
-                        #refine_loss = 0.1 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='sum') ) #reduction='sum')
-
-                        #refine_loss = 0.1 * abs( F.kl_div(logits_crop.log_softmax(dim=-1), logits_crop2.softmax(dim=-1), reduction='mean') ) #reduction='sum')
-                        #refine_loss = 0.1 * abs( F.kl_div(feat_labeled_crop, feat_labeled_crop2, reduction='mean') ) #reduction='sum')
-
                     elif args.aug_type == "single_crop":
-                        #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop, feat_labeled, reduction='batchmean') ) #reduction='sum')
                         refine_loss = refine_loss_criterion(logits_crop.view(-1, num_classes), logits.argmax(dim=1).view(-1))  #.view(-1, self.num_classes)) #.long())
                     else:
                         raise NotImplementedError()
@@ -956,7 +848,6 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                         loss = ce_loss
                     else:
                         loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.1) #0.01
-                        #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.3) # 0.5, 0.3
 
                     if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
 
@@ -968,14 +859,9 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
             else:
 
                 if args.saliency:
-                    #loss, logits = model(x, y)
-                    ##loss = loss.mean() # for contrastive learning
-
                     loss, logits = model(x, x_crop, y, mask, mask_crop)
 
                 else:
-
-                    #logits, feat_labeled = model(x)
 
                     if not args.vanilla:
                         logits, feat_labeled = model(x)
@@ -1067,15 +953,6 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
 
                         elif args.aug_type == "single_crop":
 
-                            #ce_loss = loss_fct(logits_crop.view(-1, self.num_classes), labels.view(-1))
-
-                            ##refine_loss = F.kl_div(logits_crop.softmax(dim=-1).log(), logits.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-                            #refine_loss = F.kl_div(logits_crop.log_softmax(dim=-1), logits.softmax(dim=-1), reduction='batchmean') #reduction='sum')
-
-                            #ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
-                            ##ce_loss = loss_fct(logits, y)
-
-
                             # feat KL:
                             refine_loss = F.kl_div(feat_labeled_crop.log_softmax(dim=-1), feat_labeled.softmax(dim=-1), reduction='batchmean') #reduction='sum')
 
@@ -1096,25 +973,8 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                             print("[INFO]: Skip Refine Loss")
                             loss = ce_loss
                         else:
-                            #loss = ce_loss + refine_loss #0.01
-                            #loss = ce_loss + (0.1 * refine_loss) #0.01
-                            #loss = ce_loss + (0.01 * refine_loss) #0.01
-
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * args.dist_coef) #0.01 # main
                             loss = ce_loss + refine_loss * args.dist_coef #0.01 # main (no mean)
 
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 10.0) #0.01 # main
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss) #0.01
-
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.5) #0.01
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.1) #0.01 # main
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.01) #0.01     
-                                                    
-                            #loss = ce_loss + (refine_loss * 0.1) #0.01
-
-                            #loss = (0.5 * ce_loss) + (0.5 * refine_loss * 0.3) #0.01
-
-                        #loss = criterion(logits, y)
                         if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
                         wandb.log({"ce_loss": ce_loss.item()})
                         wandb.log({"dist_loss": refine_loss.item()})
@@ -1124,10 +984,6 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                             logits = model(x)[0] # adapted to (logits, features) output
                         else:
                             logits = model(x)
-                        
-                        # print(logits.size())
-                        # print(num_classes)
-                        # print(y.size())
 
                         ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1)) #.cuda())
                         loss = ce_loss
@@ -1233,21 +1089,15 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
     if not os.path.exists("./results/"): 
         os.makedirs("./results/") 
 
-    # f = open("./models/statistics.txt", "a")
     with open("./results/" + str(args.dataset) + str(args.split) + "_vanilla" + str(args.vanilla) + ".txt", "a") as f:
         # text_train = "Epoch: " + str(epoch_print) + ", " + "Train Loss: " + str(loss_print) + ", " + "Train Accuracy: " + str(acc_print) + "\n"
         f.write(res_newLine)
         f.write(res_name)
-        #f.write(res_dataset)
-        #f.write(res_split)
-        #f.write(res_steps)
         f.write(res_bestAcc)
         f.write(res_bestStep)
         f.write(res_time)
         f.write(res_trainAcc)
         f.write(res_args)
-        #f.write(res_newLine)
-    # f.close()
 
 
     logger.info("Best Accuracy: \t%f" % best_acc)
@@ -1358,7 +1208,6 @@ def main():
                         help="Whether to perform evaluation only")
 
 
-
     parser.add_argument('--sam', action='store_true',
                         help="Whether to use the SAM training setup")
     # parser.add_argument('--cls_head', action='store_true',
@@ -1386,21 +1235,6 @@ def main():
     parser.add_argument("--aug_crop", choices=["aug_basic", "aug_scalemix", "aug_asymmAugs", "aug_multicrop"],
                         default=None,
                         help="Whether to use an extra augmentations on our crop branch.")
-
-    '''
-    parser.add_argument("--aug_basic", action="store_true",
-                        #default=False,
-                        help="enable MultiCrop to take additional views (commonly in lower resolution) from each image per iteration")
-    parser.add_argument("--aug_multicrop", action="store_true",
-                        #default=False,
-                        help="enable MultiCrop to take additional views (commonly in lower resolution) from each image per iteration")
-    parser.add_argument("--aug_scalemix", action="store_true",
-                        #default=False,
-                        help="enable ScaleMix to generate new views of an image by mixing two views of potentially different scales together via binary masking")
-    parser.add_argument("--aug_asymmAugs", action="store_true",
-                        #default=False,
-                        help="enable Asymmetrical Augmentation to form an asymmetric augmentation recipes for source and target")
-    '''
 
     #parser.add_argument('--data_root', type=str, default='./data') # Original
     #parser.add_argument('--data_root', type=str, default='/l/users/20020067/Datasets') # local
