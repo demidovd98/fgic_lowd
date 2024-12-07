@@ -23,10 +23,9 @@
 # 🐘 Model Zoo
 
 ### Main Models
-(Soon)
 
-#### Experimental Models (outside the paper)
-(Soon)
+The pre-trained models can be found here: [models](https://mbzuaiac-my.sharepoint.com/:f:/g/personal/dmitry_demidov_mbzuai_ac_ae/EnMOkgG7VQlKmvBOndirZ3IBc-L9u0uwWBYjszZn8YHOOw?e=T9y1B1)
+
 
 
 <hr />
@@ -35,10 +34,6 @@
 # 🧋 How to start
 
 ## Installation
-(Soon)
-
-For environment installation and pre-trained models preparation, please follow the instructions in [INSTALL.md](docs/INSTALL.md). 
-
 
 #### Create environment:
 
@@ -64,15 +59,9 @@ conda env create -f environment.yml
 conda create --name <env> --file requirements_conda.txt
 ```
 
-## Data preparation
-(Soon)
-
-For datasets preparation, please follow the instructions in [DATASET.md](docs/DATASET.md).
 
 ## Training and Evaluation
-(Soon)
 
-For training and evaluation, please follow the instructions in [RUN.md](docs/RUN.md).
 
 #### Run:
 
@@ -105,10 +94,12 @@ python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 
 * **(Nov 16, 2024)** 
   * Repo description added (README.md).
   * Training and evaluation code is released.
+  * Code instructions were added.
+
+* **(Dec 7, 2024)** 
+  * Pretrained models were released.
 
 * **(Soon)** 
-  * Pretrained models will be released.
-  * Code instructions will be added (INSTALL.md, DATASET.md, RUN.md).
   * Optimisation
 
 <hr />
