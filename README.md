@@ -1,5 +1,12 @@
 # Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes
 
+Official repository for the paper "[Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes](https://bmvc2024.org/proceedings/859/)", <br>
+accepted as a Full Paper to [BMVC '24](https://bmvc2024.org/).
+
+> [**Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes**](https://bmvc2024.org/proceedings/859/)
+> [![paper](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://bmva-archive.org.uk/bmvc/2024/papers/Paper_859/paper.pdf)<br>
+> [Dmitry Demidov](https://scholar.google.es/citations?hl=en&pli=1&user=k3euI0sAAAAJ)
+
 
 ## Approach
 
@@ -11,7 +18,7 @@
 
 
 ## Main Contributions
-1) We introduce a simple yet effective  architecture-independent approach to improve the performance of models at FGVC under low data regime.
+1) We introduce a simple yet effective  architecture-independent approach to improve the performance of models at FGVC under the low-data regime.
 2) Our proposed low-data framework includes two feature distillation branches for model purification both using randomly cropped inputs, which provides explicit regularisation while not relying on any extra module.
 3) Our extensive experiments on three popular FGVC datasets (CUB, Stanford Cars, and FGVC-Aircraft) demonstrate that our approach achieves state-of-the-art results on FGVC in low data regimes.
 4) Our solution allows the model to learn and refine representations by enriching the variability of the training data through extra augmented image views.
@@ -62,9 +69,11 @@ conda create --name <env> --file requirements_conda.txt
 
 ## Data Preparation
 
-Put the datasets to the corresponding folders in the '/datasets/' directory.
+Put the datasets into the corresponding folders in the '/datasets/' directory.
 
-Spilts for low-data regimes (10-100 %) are provided for each dataset in the corresponding directory: '/datasets/{dataset}/low_data/'.
+Splits for low-data regimes (10-100 %) are provided for each dataset in the corresponding directory: '/datasets/{dataset}/low_data/'.
+
+In case you put data in a different directory, you may need to change the path to datastes in the code.
 
 
 ## Training and Evaluation
@@ -101,10 +110,10 @@ python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 
 * **(Nov 16, 2024)** 
   * Repo description added (README.md).
   * Training and evaluation code is released.
-  * Code instructions were added.
+  * Code instructions are added.
 
 * **(Dec 7, 2024)** 
-  * Pretrained models were released.
+  * Pretrained models are released.
 
 * **(Soon)** 
   * Optimisation
@@ -118,14 +127,13 @@ python3 -W ignore train.py --dataset CUB --model_type cnn --model_name resnet50 
 In case you would like to utilise or refer to our approach (source code, trained models, or results) in your research, please consider citing:
 
 ```
-@misc{demidov2024extractlessefficientfinegrained,
-      title={Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes}, 
-      author={Dmitry Demidov and Abduragim Shtanchaev and Mihail Mihaylov and Mohammad Almansoori},
-      year={2024},
-      eprint={2406.19814},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2406.19814}, 
+@inproceedings{Demidov_2024_BMVC,
+ author    = {Dmitry Demidov and Abduragim Shtanchaev and Mihail Minkov Mihaylov and Mohammad Almansoori},
+ title     = {Extract More from Less: Efficient Fine-Grained Visual Recognition in Low-Data Regimes},
+ booktitle = {35th British Machine Vision Conference 2024, {BMVC} 2024, Glasgow, UK, November 25-28, 2024},
+ publisher = {BMVA},
+ year      = {2024},
+ url       = {https://papers.bmvc2024.org/0859.pdf}
 }
 ```
 
