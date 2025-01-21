@@ -346,8 +346,10 @@ class Dataset_Meta:
 
                 if self.step != -1:
                     side1_min = 0.1 + 0.5 * (self.step / 40000)
-                    print("step:", self.step)
-                    print("side1_min:", side1_min)
+
+                    if self.step % 1000 == 0:
+                        print("step:", self.step)
+                        print("side1_min:", side1_min)
                 else:
                     side1_min = 0.1
 
