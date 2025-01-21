@@ -344,9 +344,12 @@ class Dataset_Meta:
                 h_max_img = img.shape[0]
                 w_max_img = img.shape[1]
 
-                side1_min = 0.1 + 0.5 * (self.step / 40000)
-                print("step:", self.step)
-                print("side1_min:", side1_min)
+                if self.step != -1:
+                    side1_min = 0.1 + 0.5 * (self.step / 40000)
+                    print("step:", self.step)
+                    print("side1_min:", side1_min)
+                else:
+                    side1_min = 0.1
 
                 if self.saliency:
                     # portion1side = torch.rand()
@@ -2404,6 +2407,8 @@ class CUB(Dataset_Meta):
         self.transform = transform
         '''
 
+        self.step = -1
+
         self.bound_box = bound_box
         self.bound_box_parts = bound_box_parts
 
@@ -3086,6 +3091,8 @@ class CUB(Dataset_Meta):
             # print("Pass test_1")
         '''
 
+    def set_step(self, step):
+        self.step = step
 
 
     '''
