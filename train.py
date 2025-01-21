@@ -619,7 +619,8 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
         #     print(param_group)
         #     print(param_group['lr'])
 
-        train_loader.set_step(global_step)
+        # train_loader.set_step(global_step)
+        train_loader.dataset.set_step(global_step)
 
         epoch_iterator = tqdm(train_loader,
                               desc="Training (X / X Steps) (loss=X.X)",
