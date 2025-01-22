@@ -345,14 +345,19 @@ class Dataset_Meta:
                 w_max_img = img.shape[1]
 
                 if self.step != -1:
-                    #side1_min = 0.1 + 0.5 * (self.step / 40000)
-                    side1_min = 0.1 + 0.5 * (1 - self.step / 40000)
+                    #side1_min = 0.1 + 0.4 * (self.step / 40000)        # 0.1 - 0.5
+                    side1_min = 0.1 + 0.4 * (1 - self.step / 40000)     # 0.5 - 0.1
+
+                    #side1_max = 0.5 + 0.3 * self.step / 40000          # 0.5 - 0.8
+                    side1_max = 0.5 + 0.3 * (1 - self.step / 40000)     # 0.8 - 0.5
 
                     if self.step > 0 and self.step % 1000 == 0:
                         print("step:", self.step)
                         print("side1_min:", side1_min)
+                        print("side1_max:", side1_max)
                 else:
                     side1_min = 0.1
+                    side1_max = 0.8
 
                 if self.saliency:
                     # portion1side = torch.rand()
@@ -360,7 +365,8 @@ class Dataset_Meta:
                     #if index < 10: print(portion1side)
                 else:
                     #portion1side = torch.distributions.uniform.Uniform(0.1,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
-                    portion1side = torch.distributions.uniform.Uniform(side1_min,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    #portion1side = torch.distributions.uniform.Uniform(side1_min,0.8).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
+                    portion1side = torch.distributions.uniform.Uniform(side1_min, side1_max).sample([1]) # 0.5,0.67 # 0.5,0.8 # 0.7,0.95,  0.6,0.8
 
                     if (self.aug_type == "double_crop"):
                         portion1side_2 = torch.distributions.uniform.Uniform(0.8,0.9).sample([1]) # 0.67,0.8 # 0.8,0.9 # 0.7,0.95,  0.6,0.8
