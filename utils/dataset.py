@@ -345,7 +345,8 @@ class Dataset_Meta:
                 w_max_img = img.shape[1]
 
                 if self.step != -1:
-                    side1_min = 0.1 + 0.5 * (self.step / 40000)
+                    #side1_min = 0.1 + 0.5 * (self.step / 40000)
+                    side1_min = 0.1 + 0.5 * (1 - self.step / 40000)
 
                     if self.step > 0 and self.step % 1000 == 0:
                         print("step:", self.step)
