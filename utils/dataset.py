@@ -344,7 +344,8 @@ class Dataset_Meta:
                 h_max_img = img.shape[0]
                 w_max_img = img.shape[1]
 
-                if self.step != -1:
+                dynamyc_crop = False
+                if self.step != -1 and dynamyc_crop:
                     #side1_min = 0.1 + 0.4 * (self.step / 40000)        # 0.1 - 0.5
                     side1_min = 0.1 + 0.4 * (1 - self.step / 40000)     # 0.5 - 0.1
 
