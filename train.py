@@ -967,8 +967,8 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                                 # #refine_loss_negative = F.cosine_similarity(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2_shuffelled.softmax(dim=-1)).abs().mean()
 
                                 # minimize average cosine similarity
-                                #refine_loss_negative = F.cosine_similarity(feat_labeled_crop, feat_labeled_crop2_shuffelled).mean()
-                                refine_loss_negative = F.cosine_similarity(feat_labeled_crop, feat_labeled_crop2_shuffelled).sum()
+                                refine_loss_negative = F.cosine_similarity(feat_labeled_crop, feat_labeled_crop2_shuffelled).mean()
+                                # refine_loss_negative = F.cosine_similarity(feat_labeled_crop, feat_labeled_crop2_shuffelled).sum()
                                 # refine_loss_negative = F.cosine_similarity(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2_shuffelled.softmax(dim=-1)).mean()
                                 # print("Before:", refine_loss_negative.item())
                                 refine_loss_negative = max(0.0, refine_loss_negative)
