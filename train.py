@@ -876,6 +876,9 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
 
                         ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
 
+                        refine_negative = True
+
+
                         if args.aug_type == "double_crop":
                             logits_crop2, feat_labeled_crop2 = model(x_crop2)
 
@@ -953,6 +956,22 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
                             #refine_loss = 0.00005 * abs( F.kl_div(feat_labeled_crop2, feat_labeled_crop, reduction='batchmean') ) #reduction='sum')
                             #refine_loss = 0.00005 * abs( F.kl_div(logits_crop, logits_crop2, reduction='batchmean') ) #reduction='sum')
 
+                            if refine_negative:
+
+                                dim = 0
+                                idx = torch.randperm(feat_labeled_crop2.shape[dim])                                
+                                feat_labeled_crop2_shuffelled = feat_labeled_crop2[idx]
+
+                                # # minimize average magnitude of cosine similarity
+                                # refine_loss_negative = F.cosine_similarity(feat_labeled_crop, feat_labeled_crop2_shuffelled).abs().mean()
+                                # #refine_loss_negative = F.cosine_similarity(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2_shuffelled.softmax(dim=-1)).abs().mean()
+
+                                # minimize average cosine similarity
+                                refine_loss_negative = F.cosine_similarity(feat_labeled_crop, feat_labeled_crop2_shuffelled).mean()
+                                # refine_loss_negative = F.cosine_similarity(feat_labeled_crop.log_softmax(dim=-1), feat_labeled_crop2_shuffelled.softmax(dim=-1)).mean()
+                                print("Before:", refine_loss_negative.item())
+                                refine_loss_negative = max(0.0, refine_loss_negative)
+                                print("After:", refine_loss_negative.item())
 
                         elif args.aug_type == "single_crop":
 
@@ -974,13 +993,25 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
 
                         if torch.isinf(refine_loss):
                             print("[INFO]: Skip Refine Loss")
-                            loss = ce_loss
-                        else:
-                            loss = ce_loss + refine_loss * args.dist_coef #0.01 # main (no mean)
+                            # loss = ce_loss
+                            refine_loss = 0.0
+                        if refine_negative and torch.isinf(refine_loss_negative):
+                            print("[INFO]: Skip Refine Negative Loss")
+                            refine_loss_negative = 0.0
 
-                        if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
+                        if refine_negative:
+                            loss = ce_loss + (refine_loss * args.dist_coef) + (refine_loss_negative * args.dist_coef) #0.01 # main (no mean)
+                        else:
+                            loss = ce_loss + refine_loss * args.dist_coef  #0.01 # main (no mean)
+
+                        if refine_negative:
+                            if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Refine Negative loss:", refine_loss_negative.item(), "Final loss:", loss.item())
+                        else:
+                            if (step % 50 == 0): print("[INFO]: ce loss:", ce_loss.item(), "Refine loss:", refine_loss.item(), "Final loss:", loss.item())
+
                         wandb.log({"ce_loss": ce_loss.item()})
                         wandb.log({"dist_loss": refine_loss.item()})
+                        wandb.log({"dist_neg_loss": refine_loss_negative.item()})
 
                     else:
                         if args.model_type == "vit": # HOT-FIX. TODO: Move our ViT to /models/models_adapted/vit_my.py , so that for vanilla we call original ViT code (like in ResNet)
