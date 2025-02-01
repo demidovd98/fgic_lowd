@@ -876,8 +876,7 @@ def train(args, model, writer, train_loader, test_loader, classifier=None, num_c
 
                         ce_loss = loss_fct(logits.view(-1, num_classes), y.view(-1))
 
-                        refine_negative = True
-
+                        refine_negative = False #True
 
                         if args.aug_type == "double_crop":
                             logits_crop2, feat_labeled_crop2 = model(x_crop2)
